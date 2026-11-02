@@ -1,6 +1,5 @@
 import { palettes } from "@/data/palettes";
-
-export type Oklch = readonly [lightness: number, chroma: number, hue: number];
+import type { Oklch } from "@/lib/color";
 
 export type Palette = {
   name: string;
@@ -13,8 +12,4 @@ export const pageCount = Math.ceil(palettes.length / PAGE_SIZE);
 
 export function getPalettePage(page: number) {
   return palettes.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-}
-
-export function toCss([lightness, chroma, hue]: Oklch) {
-  return `oklch(${lightness} ${chroma} ${hue})`;
 }

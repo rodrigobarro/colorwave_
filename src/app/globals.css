@@ -23,3 +23,54 @@ body {
   background: var(--background);
   color: var(--foreground);
 }
+
+@layer base {
+  button:not(:disabled) {
+    cursor: pointer;
+  }
+}
+
+.color-swatch {
+  padding: 0;
+  overflow: hidden;
+  appearance: none;
+  cursor: pointer;
+}
+
+.color-swatch::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.color-swatch::-webkit-color-swatch {
+  border: 0;
+}
+
+.color-swatch::-moz-color-swatch {
+  border: 0;
+}
+
+.color-slider {
+  height: 0.75rem;
+  border-radius: 9999px;
+  appearance: none;
+  cursor: pointer;
+}
+
+.color-slider::-webkit-slider-thumb {
+  width: 1.25rem;
+  height: 1.25rem;
+  border: 2px solid white;
+  border-radius: 9999px;
+  background: transparent;
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 0.5);
+  appearance: none;
+}
+
+.color-slider::-moz-range-thumb {
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid white;
+  border-radius: 9999px;
+  background: transparent;
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 0.5);
+}
