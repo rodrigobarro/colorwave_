@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { getPalettePage, pageCount, toCss } from "@/lib/palettes";
+import { toCss } from "@/lib/color";
+import { getPalettePage, pageCount } from "@/lib/palettes";
 
 function pageHref(page: number) {
   return page === 1 ? "/" : `/page/${page}`;
@@ -32,6 +33,9 @@ function Pagination({ page }: { page: number }) {
 export function PaletteGallery({ page }: { page: number }) {
   return (
     <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-12 px-6 pb-16">
+      <Link href="/create" className="self-center text-sm font-medium">
+        Criar paleta
+      </Link>
       <ul className="grid gap-x-6 gap-y-8 sm:grid-cols-2 lg:grid-cols-3">
         {getPalettePage(page).map((palette) => (
           <li key={palette.name}>
