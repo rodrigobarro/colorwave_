@@ -11,7 +11,11 @@ Crie um `.env.local` com a conexão de uma branch de desenvolvimento do Neon, nu
 ```bash
 DATABASE_URL="string com pooling, usada pelo app"
 DATABASE_URL_UNPOOLED="string sem pooling, usada nas migrações"
+DATABASE_NEON_AUTH_BASE_URL="URL de Auth da mesma branch do Neon"
+NEON_AUTH_COOKIE_SECRET="saída de: openssl rand -base64 32"
 ```
+
+Na Vercel, as três primeiras são criadas pela integração com o Neon. O `NEON_AUTH_COOKIE_SECRET` é criado à mão, em Production e Preview, com um valor diferente do local.
 
 ```bash
 npm install

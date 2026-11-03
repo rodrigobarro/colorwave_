@@ -1,12 +1,12 @@
 import {
   getGamut,
+  MAX_CHROMA,
   toCss,
   toSrgbGamut,
   type Gamut,
   type Oklch,
 } from "@/lib/color";
 
-const MAX_CHROMA = 0.4;
 const HUE_STOPS = Array.from({ length: 13 }, (_, index) => index * 30);
 
 const gamutMessages: Record<Exclude<Gamut, "srgb">, string> = {

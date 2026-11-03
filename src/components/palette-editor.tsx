@@ -1,13 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useSyncExternalStore } from "react";
+import { useRef, useState, useSyncExternalStore } from "react";
 import { ColorControls } from "@/components/color-controls";
 import { GradientPreview } from "@/components/gradient-preview";
+import { PublishButton } from "@/components/publish-button";
 import {
   generateColors,
   getGamut,
   harmonies,
+  MAX_COLORS,
+  MIN_COLORS,
   mixColors,
   readableOn,
   toCss,
@@ -17,8 +20,7 @@ import {
 import {
   getDraft,
   getInitialDraft,
-  MAX_COLORS,
-  MIN_COLORS,
+  MAX_NAME_LENGTH,
   saveDraft,
   subscribeToDraft,
   type Draft,
@@ -57,9 +59,16 @@ export function PaletteEditor() {
   );
   const [selected, setSelected] = useState(0);
   const [previous, setPrevious] = useState<Draft | null>(null);
+  const [isNameMissing, setIsNameMissing] = useState(false);
+  const nameInput = useRef<HTMLInputElement>(null);
 
   const { colors } = draft;
   const selectedIndex = Math.min(selected, colors.length - 1);
+
+  function requireName() {
+    setIsNameMissing(true);
+    nameInput.current?.focus();
+  }
 
   function generate(base: string, harmony: Harmony) {
     if (isEdited(draft)) setPrevious(draft);
@@ -117,38 +126,50 @@ export function PaletteEditor() {
 
   return (
     <main className="mx-auto grid w-full max-w-6xl flex-1 content-start gap-8 px-6 pb-16 lg:grid-cols-[18rem_1fr]">
-      <Link
-        href="/"
-        className="flex items-center gap-2 justify-self-start rounded-lg px-3 py-1.5 text-sm ring-1 ring-foreground/15 lg:col-span-2"
-      >
-        <svg
-          aria-hidden
-          viewBox="0 0 16 16"
-          className="size-4"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
+      <div className="flex flex-wrap items-center justify-between gap-4 lg:col-span-2">
+        <Link
+          href="/"
+          className="flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm ring-1 ring-foreground/15"
         >
-          <path d="M13 8H3M7 4 3 8l4 4" />
-        </svg>
-        Voltar
-      </Link>
+          <svg
+            aria-hidden
+            viewBox="0 0 16 16"
+            className="size-4"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M13 8H3M7 4 3 8l4 4" />
+          </svg>
+          Voltar
+        </Link>
+        <PublishButton draft={draft} onMissingName={requireName} />
+      </div>
 
       <aside className="flex flex-col gap-6">
         <label className="flex flex-col gap-2 text-sm font-medium">
           Nome
           <input
+            ref={nameInput}
             type="text"
             className="rounded-lg bg-transparent px-3 py-2 font-normal ring-1 ring-foreground/15"
             placeholder="Nome da paleta"
-            maxLength={60}
+            maxLength={MAX_NAME_LENGTH}
+            aria-invalid={isNameMissing}
+            aria-describedby={isNameMissing ? "name-error" : undefined}
             value={draft.name}
-            onChange={(event) =>
-              saveDraft({ ...draft, name: event.target.value })
-            }
+            onChange={(event) => {
+              setIsNameMissing(false);
+              saveDraft({ ...draft, name: event.target.value });
+            }}
           />
+          {isNameMissing && (
+            <span id="name-error" role="alert" className="font-normal">
+              Dê um nome à paleta para publicar.
+            </span>
+          )}
         </label>
 
         <label className="flex cursor-pointer items-center justify-between text-sm font-medium">
