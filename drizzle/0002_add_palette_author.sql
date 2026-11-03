@@ -1,0 +1,1 @@
+ALTER TABLE "palettes" ADD COLUMN "author_id" uuid;

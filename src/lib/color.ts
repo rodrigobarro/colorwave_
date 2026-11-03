@@ -17,6 +17,10 @@ export type Oklch = readonly [lightness: number, chroma: number, hue: number];
 
 export type Gamut = "srgb" | "p3" | "outside";
 
+export const MAX_CHROMA = 0.4;
+export const MIN_COLORS = 2;
+export const MAX_COLORS = 10;
+
 export type Harmony =
   | "analogous"
   | "monochromatic"
@@ -67,6 +71,33 @@ function fromColor(color: Parameters<typeof to>[0]): Oklch {
 
   // Neutral colors have no hue, and colorjs.io reports it as null.
   return roundColor([lightness ?? 0, chroma ?? 0, hue ?? 0]);
+}
+
+function isOklch(value: unknown) {
+  if (!Array.isArray(value) || value.length !== 3) return false;
+
+  const [lightness, chroma, hue] = value;
+
+  return (
+    Number.isFinite(lightness) &&
+    Number.isFinite(chroma) &&
+    Number.isFinite(hue) &&
+    lightness >= 0 &&
+    lightness <= 1 &&
+    chroma >= 0 &&
+    chroma <= MAX_CHROMA &&
+    hue >= 0 &&
+    hue <= 360
+  );
+}
+
+export function isPaletteColors(value: unknown): value is readonly Oklch[] {
+  return (
+    Array.isArray(value) &&
+    value.length >= MIN_COLORS &&
+    value.length <= MAX_COLORS &&
+    value.every(isOklch)
+  );
 }
 
 export function toCss([lightness, chroma, hue]: Oklch) {
