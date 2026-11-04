@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { toCss } from "@/lib/color";
+import { PaletteSwatches } from "@/components/palette-swatches";
 import { getPageCount, getPalettePage } from "@/lib/palettes";
 
 function pageHref(page: number) {
@@ -44,18 +44,7 @@ export async function PaletteGallery({ page }: { page: number }) {
       <ul className="grid gap-x-6 gap-y-8 sm:grid-cols-2 lg:grid-cols-3">
         {palettes.map((palette) => (
           <li key={palette.id}>
-            <div
-              aria-hidden
-              className="flex h-32 overflow-hidden rounded-xl ring-1 ring-foreground/10"
-            >
-              {palette.colors.map((color) => (
-                <div
-                  key={toCss(color)}
-                  className="flex-1"
-                  style={{ backgroundColor: toCss(color) }}
-                />
-              ))}
-            </div>
+            <PaletteSwatches colors={palette.colors} />
             <p className="mt-3 text-sm font-medium">{palette.name}</p>
           </li>
         ))}

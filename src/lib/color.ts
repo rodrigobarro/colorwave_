@@ -4,6 +4,7 @@ import {
   OKLCH,
   P3,
   parse,
+  serialize,
   sRGB,
   to,
   toGamut,
@@ -106,6 +107,12 @@ export function toCss([lightness, chroma, hue]: Oklch) {
 
 export function fromHex(hex: string) {
   return fromColor(parse(hex));
+}
+
+export function toHex(color: Oklch) {
+  const srgb = to(toGamut(toColor(color), { space: sRGB, method: "css" }), sRGB);
+
+  return serialize(srgb, { format: "hex", collapse: false }).toUpperCase();
 }
 
 export function getGamut(color: Oklch): Gamut {
