@@ -11,6 +11,7 @@ import {
   mixColors,
   readableOn,
   toCss,
+  toHex,
   type Harmony,
   type Oklch,
 } from "@/lib/color";
@@ -71,6 +72,17 @@ describe("fromHex", () => {
 
   it("uses 0 for the hue of neutral colors", () => {
     expect(fromHex("#ffffff")).toEqual([1, 0, 0]);
+  });
+});
+
+describe("toHex", () => {
+  it("round-trips sRGB colors as six-digit uppercase hex", () => {
+    expect(toHex(fromHex("#3a7bd5"))).toBe("#3A7BD5");
+    expect(toHex(fromHex("#ffffff"))).toBe("#FFFFFF");
+  });
+
+  it("maps colors outside sRGB into it", () => {
+    expect(toHex([0.7, MAX_CHROMA, 150])).toMatch(/^#[0-9A-F]{6}$/);
   });
 });
 
