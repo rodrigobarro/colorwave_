@@ -30,12 +30,14 @@ export function PaletteSwatches({ colors }: { colors: readonly Oklch[] }) {
     <div className="flex h-32 overflow-hidden rounded-xl ring-1 ring-foreground/10">
       {colors.map((color, index) => {
         const isCopied = copied?.index === index;
+        const label = `Copy ${toHex(color)}`;
 
         return (
           <button
             key={index}
             type="button"
-            aria-label={`Copiar ${toHex(color)}`}
+            aria-label={label}
+            title={label}
             onClick={() => copy(index)}
             className="relative basis-0 overflow-hidden transition-[flex-grow] duration-300 ease-out focus-visible:outline-2 focus-visible:-outline-offset-4 focus-visible:outline-current motion-reduce:transition-none"
             style={{
@@ -47,17 +49,25 @@ export function PaletteSwatches({ colors }: { colors: readonly Oklch[] }) {
             {isCopied && (
               <span
                 key={copied.id}
-                onAnimationEnd={() => clear(copied.id)}
-                className="absolute inset-x-0 bottom-2 animate-copied font-mono text-xs font-medium whitespace-nowrap motion-reduce:animate-copied-fade"
+                className="absolute inset-x-0 bottom-2 flex flex-col items-center gap-0.5 whitespace-nowrap"
               >
-                {copied.hex}
+                <span className="animate-copied text-[10px] font-semibold tracking-widest uppercase text-current/70 motion-reduce:animate-copied-fade">
+                  Copied
+                </span>
+                {/* Enters right after "Copied" so it reads first, and ends last. */}
+                <span
+                  onAnimationEnd={() => clear(copied.id)}
+                  className="animate-copied font-mono text-xs font-medium [animation-delay:60ms] motion-reduce:animate-copied-fade"
+                >
+                  {copied.hex}
+                </span>
               </span>
             )}
           </button>
         );
       })}
       <span aria-live="polite" className="sr-only">
-        {copied && `${copied.hex} copiado`}
+        {copied && `${copied.hex} copied`}
       </span>
     </div>
   );
