@@ -17,21 +17,32 @@ export async function getPageCount() {
   return Math.ceil(total / PAGE_SIZE);
 }
 
+const summary = {
+  id: palettes.id,
+  name: palettes.name,
+  colors: palettes.colors,
+};
+
 export async function getPalettePage(page: number) {
   "use cache";
   cacheLife("max");
   cacheTag("palettes");
 
   return db
-    .select({
-      id: palettes.id,
-      name: palettes.name,
-      colors: palettes.colors,
-    })
+    .select(summary)
     .from(palettes)
     .orderBy(desc(palettes.id))
     .limit(PAGE_SIZE)
     .offset((page - 1) * PAGE_SIZE);
+}
+
+// Not cached: only the author sees this list, and it must reflect their edits.
+export function getPalettesByAuthor(authorId: string) {
+  return db
+    .select(summary)
+    .from(palettes)
+    .where(eq(palettes.authorId, authorId))
+    .orderBy(desc(palettes.id));
 }
 
 // The newest palettes are prerendered at build; the rest render on first visit.
@@ -71,5 +82,9 @@ export async function getPalette(id: number) {
 
   return palette ?? null;
 }
+
+export type PaletteSummary = Awaited<
+  ReturnType<typeof getPalettesByAuthor>
+>[number];
 
 export type Palette = NonNullable<Awaited<ReturnType<typeof getPalette>>>;

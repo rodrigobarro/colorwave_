@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { AccountMenu } from "@/components/account-menu";
 import { Logo } from "@/components/logo";
 import "./globals.css";
 
@@ -25,6 +26,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col font-sans">
+        <div className="flex min-h-14 items-center justify-end px-6 pt-4">
+          <AccountMenu />
+        </div>
         <Logo />
         {children}
       </body>

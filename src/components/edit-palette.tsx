@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { updatePalette } from "@/app/palette/actions";
 import { PaletteEditor } from "@/components/palette-editor";
+import { SignInButton } from "@/components/sign-in-dialog";
 import { authClient } from "@/lib/auth/client";
 import { isHarmony, isHexColor, toHex } from "@/lib/color";
 import type { Draft } from "@/lib/draft";
@@ -101,12 +102,21 @@ export function EditPalette({ palette }: { palette: EditablePalette }) {
             ? "This palette was published by someone else."
             : "Sign in with the account that published this palette."}
         </p>
-        <Link
-          href={`/palette/${palette.id}`}
-          className="text-sm font-medium underline"
-        >
-          Back to the palette
-        </Link>
+        <div className="flex items-center gap-4">
+          {!session && (
+            <SignInButton
+              className="rounded-lg px-3 py-1.5 text-sm ring-1 ring-foreground/15"
+              title="Sign in to edit"
+              description="Use the account that published this palette."
+            />
+          )}
+          <Link
+            href={`/palette/${palette.id}`}
+            className="text-sm font-medium underline"
+          >
+            Back to the palette
+          </Link>
+        </div>
       </main>
     );
   }
