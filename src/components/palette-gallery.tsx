@@ -45,7 +45,12 @@ export async function PaletteGallery({ page }: { page: number }) {
         {palettes.map((palette) => (
           <li key={palette.id}>
             <PaletteSwatches colors={palette.colors} />
-            <p className="mt-3 text-sm font-medium">{palette.name}</p>
+            <Link
+              href={`/palette/${palette.id}`}
+              className="mt-3 block text-sm font-medium hover:underline"
+            >
+              {palette.name}
+            </Link>
           </li>
         ))}
       </ul>

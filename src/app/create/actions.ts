@@ -5,27 +5,24 @@ import { updateTag } from "next/cache";
 import { db } from "@/db";
 import { palettes } from "@/db/schema";
 import { auth } from "@/lib/auth/server";
-import { isPaletteColors } from "@/lib/color";
-import { MAX_NAME_LENGTH, type Draft } from "@/lib/draft";
+import { parsePaletteInput, type PaletteInput } from "@/lib/palette-input";
 
 const PUBLISH_LIMIT_PER_HOUR = 10;
 
-export async function publishPalette({
-  name,
-  colors,
-}: Pick<Draft, "name" | "colors">) {
+export async function publishPalette(input: PaletteInput) {
   const { data: session } = await auth.getSession();
 
   if (!session?.user) return { error: "Entre para publicar a paleta." };
 
-  const trimmedName = typeof name === "string" ? name.trim() : "";
+  const parsed = parsePaletteInput(input);
 
-  if (!trimmedName || trimmedName.length > MAX_NAME_LENGTH) {
-    return { error: "Dê um nome à paleta antes de publicar." };
-  }
-
-  if (!isPaletteColors(colors)) {
-    return { error: "Esta paleta tem cores inválidas." };
+  if (!parsed.ok) {
+    return {
+      error:
+        parsed.problem === "name"
+          ? "Dê um nome à paleta antes de publicar."
+          : "Esta paleta tem cores inválidas.",
+    };
   }
 
   // Uses the database clock so the window doesn't depend on the server's.
@@ -45,9 +42,12 @@ export async function publishPalette({
     };
   }
 
-  await db
+  const [{ id }] = await db
     .insert(palettes)
-    .values({ name: trimmedName, colors, authorId: session.user.id });
+    .values({ ...parsed.palette, authorId: session.user.id })
+    .returning({ id: palettes.id });
 
   updateTag("palettes");
+
+  return { id };
 }

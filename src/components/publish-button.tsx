@@ -51,16 +51,18 @@ export function PublishButton({
 
       const result = await publishPalette({
         name: draft.name,
+        base: draft.base,
+        harmony: draft.harmony,
         colors: draft.colors,
       });
 
-      if (result?.error) {
+      if (result.error !== undefined) {
         setPublishError(result.error);
         return;
       }
 
       saveDraft(getInitialDraft());
-      router.push("/");
+      router.push(`/palette/${result.id}`);
     });
   }
 
