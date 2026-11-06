@@ -14,10 +14,8 @@ import { getInitialDraft, saveDraft, type Draft } from "@/lib/draft";
 
 const PUBLISH_PARAM = "publish";
 
-const providers = [
-  { id: "google", label: "Entrar com Google" },
-  { id: "github", label: "Entrar com GitHub" },
-] as const;
+// Only providers enabled in Neon Auth belong here; any other one fails sign-in.
+const providers = [{ id: "google", label: "Entrar com Google" }] as const;
 
 const secondaryButtonClassName =
   "rounded-lg px-3 py-2 text-sm ring-1 ring-foreground/15";
