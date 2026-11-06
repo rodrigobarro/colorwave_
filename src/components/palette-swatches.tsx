@@ -5,7 +5,14 @@ import { readableOn, toCss, toHex, type Oklch } from "@/lib/color";
 
 type Copied = { index: number; hex: string; id: number };
 
-export function PaletteSwatches({ colors }: { colors: readonly Oklch[] }) {
+export function PaletteSwatches({
+  colors,
+  className = "h-32",
+}: {
+  colors: readonly Oklch[];
+  // Sets the height.
+  className?: string;
+}) {
   const [copied, setCopied] = useState<Copied | null>(null);
 
   async function copy(index: number) {
@@ -27,7 +34,9 @@ export function PaletteSwatches({ colors }: { colors: readonly Oklch[] }) {
   }
 
   return (
-    <div className="flex h-32 overflow-hidden rounded-xl ring-1 ring-foreground/10">
+    <div
+      className={`flex overflow-hidden rounded-xl ring-1 ring-foreground/10 ${className}`}
+    >
       {colors.map((color, index) => {
         const isCopied = copied?.index === index;
         const label = `Copy ${toHex(color)}`;

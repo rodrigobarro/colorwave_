@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
-import { PaletteEditor } from "@/components/palette-editor";
+import { CreatePalette } from "@/components/create-palette";
 
 export const metadata: Metadata = {
   title: "Criar paleta · Colorwave",
 };
 
 export default function CreatePage() {
-  return <PaletteEditor />;
+  return <CreatePalette />;
 }

@@ -1,10 +1,9 @@
 "use client";
 
-import Link from "next/link";
-import { useRef, useState, useSyncExternalStore } from "react";
+import { useState, type ReactNode } from "react";
+import { BackLink } from "@/components/back-link";
 import { ColorControls } from "@/components/color-controls";
 import { GradientPreview } from "@/components/gradient-preview";
-import { PublishButton } from "@/components/publish-button";
 import {
   generateColors,
   getGamut,
@@ -17,14 +16,7 @@ import {
   type Harmony,
   type Oklch,
 } from "@/lib/color";
-import {
-  getDraft,
-  getInitialDraft,
-  MAX_NAME_LENGTH,
-  saveDraft,
-  subscribeToDraft,
-  type Draft,
-} from "@/lib/draft";
+import { MAX_NAME_LENGTH, type Draft } from "@/lib/draft";
 
 const harmonyNames = Object.keys(harmonies) as Harmony[];
 
@@ -53,29 +45,37 @@ function isEdited({ base, harmony, colors }: Draft) {
   );
 }
 
-export function PaletteEditor() {
-  const draft = useSyncExternalStore(
-    subscribeToDraft,
-    getDraft,
-    getInitialDraft,
-  );
+export function PaletteEditor({
+  draft,
+  onChange,
+  backHref,
+  renderAction,
+}: {
+  draft: Draft;
+  onChange: (draft: Draft) => void;
+  backHref: string;
+  // Receives a callback that flags the missing name and focuses its input.
+  renderAction: (requireName: () => void) => ReactNode;
+}) {
   const [selected, setSelected] = useState(0);
   const [previous, setPrevious] = useState<Draft | null>(null);
   const [isNameMissing, setIsNameMissing] = useState(false);
-  const nameInput = useRef<HTMLInputElement>(null);
+  // Kept in state, not a ref, because renderAction gets requireName during
+  // render and a ref read there would break the React Compiler's rules.
+  const [nameInput, setNameInput] = useState<HTMLInputElement | null>(null);
 
   const { colors } = draft;
   const selectedIndex = Math.min(selected, colors.length - 1);
 
   function requireName() {
     setIsNameMissing(true);
-    nameInput.current?.focus();
+    nameInput?.focus();
   }
 
   function generate(base: string, harmony: Harmony) {
     if (isEdited(draft)) setPrevious(draft);
 
-    saveDraft({
+    onChange({
       ...draft,
       base,
       harmony,
@@ -88,12 +88,12 @@ export function PaletteEditor() {
 
     const { base, harmony, colors } = previous;
 
-    saveDraft({ ...draft, base, harmony, colors });
+    onChange({ ...draft, base, harmony, colors });
     setPrevious(null);
   }
 
   function updateColor(color: Oklch) {
-    saveDraft({
+    onChange({
       ...draft,
       colors: colors.with(selectedIndex, color),
     });
@@ -103,7 +103,7 @@ export function PaletteEditor() {
     const neighbor = colors[selectedIndex + 1] ?? colors[selectedIndex - 1];
     const color = mixColors(colors[selectedIndex], neighbor);
 
-    saveDraft({
+    onChange({
       ...draft,
       colors: colors.toSpliced(selectedIndex + 1, 0, color),
     });
@@ -111,13 +111,13 @@ export function PaletteEditor() {
   }
 
   function removeColor() {
-    saveDraft({ ...draft, colors: colors.toSpliced(selectedIndex, 1) });
+    onChange({ ...draft, colors: colors.toSpliced(selectedIndex, 1) });
   }
 
   function moveColor(offset: number) {
     const target = selectedIndex + offset;
 
-    saveDraft({
+    onChange({
       ...draft,
       colors: colors
         .with(selectedIndex, colors[target])
@@ -129,32 +129,15 @@ export function PaletteEditor() {
   return (
     <main className="mx-auto grid w-full max-w-6xl flex-1 content-start gap-8 px-6 pb-16 lg:grid-cols-[18rem_1fr]">
       <div className="flex flex-wrap items-center justify-between gap-4 lg:col-span-2">
-        <Link
-          href="/"
-          className="flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm ring-1 ring-foreground/15"
-        >
-          <svg
-            aria-hidden
-            viewBox="0 0 16 16"
-            className="size-4"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M13 8H3M7 4 3 8l4 4" />
-          </svg>
-          Voltar
-        </Link>
-        <PublishButton draft={draft} onMissingName={requireName} />
+        <BackLink href={backHref}>Voltar</BackLink>
+        {renderAction(requireName)}
       </div>
 
       <aside className="flex flex-col gap-6">
         <label className="flex flex-col gap-2 text-sm font-medium">
           Nome
           <input
-            ref={nameInput}
+            ref={setNameInput}
             type="text"
             className="rounded-lg bg-transparent px-3 py-2 font-normal ring-1 ring-foreground/15"
             placeholder="Nome da paleta"
@@ -164,12 +147,12 @@ export function PaletteEditor() {
             value={draft.name}
             onChange={(event) => {
               setIsNameMissing(false);
-              saveDraft({ ...draft, name: event.target.value });
+              onChange({ ...draft, name: event.target.value });
             }}
           />
           {isNameMissing && (
             <span id="name-error" role="alert" className="font-normal">
-              Dê um nome à paleta para publicar.
+              Dê um nome à paleta.
             </span>
           )}
         </label>

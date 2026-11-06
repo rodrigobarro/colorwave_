@@ -1,6 +1,7 @@
 import {
   generateColors,
-  harmonies,
+  isHarmony,
+  isHexColor,
   isPaletteColors,
   type Harmony,
   type Oklch,
@@ -32,8 +33,8 @@ let currentDraft: Draft | undefined;
 function isDraft(value: Partial<Draft> | null): value is Draft {
   return (
     typeof value?.name === "string" &&
-    /^#[0-9a-f]{6}$/i.test(value.base ?? "") &&
-    Object.hasOwn(harmonies, value.harmony ?? "") &&
+    isHexColor(value?.base) &&
+    isHarmony(value?.harmony) &&
     isPaletteColors(value.colors)
   );
 }

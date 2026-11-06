@@ -101,6 +101,14 @@ export function isPaletteColors(value: unknown): value is readonly Oklch[] {
   );
 }
 
+export function isHexColor(value: unknown): value is string {
+  return typeof value === "string" && /^#[0-9a-f]{6}$/i.test(value);
+}
+
+export function isHarmony(value: unknown): value is Harmony {
+  return typeof value === "string" && Object.hasOwn(harmonies, value);
+}
+
 export function toCss([lightness, chroma, hue]: Oklch) {
   return `oklch(${lightness} ${chroma} ${hue})`;
 }
