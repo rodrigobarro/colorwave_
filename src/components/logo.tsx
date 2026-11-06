@@ -2,7 +2,7 @@ import Link from "next/link";
 
 export function Logo() {
   return (
-    <header className="flex flex-col items-center gap-3 px-6 py-12">
+    <header className="flex flex-col items-center gap-3 px-6 pt-2 pb-12">
       <Link href="/">
         <h1 className="text-4xl font-semibold tracking-tight">Colorwave</h1>
       </Link>

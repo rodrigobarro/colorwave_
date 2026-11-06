@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { PaletteSwatches } from "@/components/palette-swatches";
+import { PaletteCard } from "@/components/palette-card";
 import { getPageCount, getPalettePage } from "@/lib/palettes";
 
 function pageHref(page: number) {
@@ -44,13 +44,7 @@ export async function PaletteGallery({ page }: { page: number }) {
       <ul className="grid gap-x-6 gap-y-8 sm:grid-cols-2 lg:grid-cols-3">
         {palettes.map((palette) => (
           <li key={palette.id}>
-            <PaletteSwatches colors={palette.colors} />
-            <Link
-              href={`/palette/${palette.id}`}
-              className="mt-3 block text-sm font-medium hover:underline"
-            >
-              {palette.name}
-            </Link>
+            <PaletteCard palette={palette} />
           </li>
         ))}
       </ul>
