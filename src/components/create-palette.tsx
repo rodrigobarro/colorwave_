@@ -2,7 +2,7 @@
 
 import { useSyncExternalStore } from "react";
 import { PaletteEditor } from "@/components/palette-editor";
-import { PublishButton } from "@/components/publish-button";
+import { SaveNewPaletteButton } from "@/components/save-new-palette-button";
 import {
   getDraft,
   getInitialDraft,
@@ -10,7 +10,7 @@ import {
   subscribeToDraft,
 } from "@/lib/draft";
 
-// New palettes keep their draft in localStorage until they are published.
+// New palettes keep their draft in localStorage until they are saved.
 export function CreatePalette() {
   const draft = useSyncExternalStore(
     subscribeToDraft,
@@ -24,7 +24,7 @@ export function CreatePalette() {
       onChange={saveDraft}
       backHref="/"
       renderAction={(requireName) => (
-        <PublishButton draft={draft} onMissingName={requireName} />
+        <SaveNewPaletteButton draft={draft} onMissingName={requireName} />
       )}
     />
   );

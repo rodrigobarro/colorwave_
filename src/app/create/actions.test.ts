@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Oklch } from "@/lib/color";
 import { MAX_NAME_LENGTH } from "@/lib/draft";
 import type { PaletteInput } from "@/lib/palette-input";
-import { publishPalette } from "./actions";
+import { savePalette } from "./actions";
 
 const mocks = vi.hoisted(() => {
   const where = vi.fn();
@@ -13,7 +13,6 @@ const mocks = vi.hoisted(() => {
 
   return {
     getSession: vi.fn(),
-    updateTag: vi.fn(),
     where,
     values,
     returning,
@@ -24,7 +23,6 @@ const mocks = vi.hoisted(() => {
   };
 });
 
-vi.mock("next/cache", () => ({ updateTag: mocks.updateTag }));
 vi.mock("@/lib/auth/server", () => ({
   auth: { getSession: mocks.getSession },
 }));
@@ -41,25 +39,24 @@ function signIn() {
   mocks.getSession.mockResolvedValue({ data: { user: { id: USER_ID } } });
 }
 
-function publishedRecently(count: number) {
+function savedRecently(count: number) {
   mocks.where.mockResolvedValue([{ recent: count }]);
 }
 
-function expectNothingPublished() {
+function expectNothingSaved() {
   expect(mocks.db.insert).not.toHaveBeenCalled();
-  expect(mocks.updateTag).not.toHaveBeenCalled();
 }
 
 beforeEach(() => {
   vi.clearAllMocks();
   signIn();
-  publishedRecently(0);
+  savedRecently(0);
   mocks.returning.mockResolvedValue([{ id: 54 }]);
 });
 
-describe("publishPalette", () => {
-  it("publishes the palette for the signed-in user", async () => {
-    const result = await publishPalette({
+describe("savePalette", () => {
+  it("saves a private palette for the signed-in user", async () => {
+    const result = await savePalette({
       name: "  Mar  ",
       colors,
       base: "#2F6FDE",
@@ -72,18 +69,17 @@ describe("publishPalette", () => {
       colors,
       ...origin,
       authorId: USER_ID,
+      visibility: "private",
     });
-    expect(mocks.updateTag).toHaveBeenCalledWith("palettes");
-    expect(mocks.updateTag).toHaveBeenCalledTimes(1);
   });
 
   it("requires a session", async () => {
     mocks.getSession.mockResolvedValue({ data: null });
 
-    const result = await publishPalette({ name: "Mar", colors, ...origin });
+    const result = await savePalette({ name: "Mar", colors, ...origin });
 
-    expect(result).toEqual({ error: "Entre para publicar a paleta." });
-    expectNothingPublished();
+    expect(result).toEqual({ error: "Sign in to save the palette." });
+    expectNothingSaved();
   });
 
   it.each([
@@ -91,51 +87,51 @@ describe("publishPalette", () => {
     ["a blank name", "   "],
     ["a name that is too long", "a".repeat(MAX_NAME_LENGTH + 1)],
   ])("rejects %s", async (_, name) => {
-    const result = await publishPalette({ name, colors, ...origin });
+    const result = await savePalette({ name, colors, ...origin });
 
-    expect(result).toEqual({ error: "Dê um nome à paleta antes de publicar." });
-    expectNothingPublished();
+    expect(result).toEqual({ error: "Give the palette a name before saving." });
+    expectNothingSaved();
   });
 
   it("rejects a name that isn't a string", async () => {
-    const result = await publishPalette({
+    const result = await savePalette({
       name: 42 as unknown as string,
       colors,
       ...origin,
     });
 
-    expect(result).toEqual({ error: "Dê um nome à paleta antes de publicar." });
-    expectNothingPublished();
+    expect(result).toEqual({ error: "Give the palette a name before saving." });
+    expectNothingSaved();
   });
 
   it("rejects invalid colors", async () => {
-    const result = await publishPalette({
+    const result = await savePalette({
       name: "Mar",
       colors: [[0.4, 0.1, 200]],
       ...origin,
     });
 
-    expect(result).toEqual({ error: "Esta paleta tem cores inválidas." });
-    expectNothingPublished();
+    expect(result).toEqual({ error: "This palette has invalid colors." });
+    expectNothingSaved();
   });
 
   it.each([
     ["an invalid base", { base: "blue" }],
     ["an unknown harmony", { harmony: "tetradic" }],
   ])("rejects %s", async (_, change) => {
-    const result = await publishPalette({
+    const result = await savePalette({
       name: "Mar",
       colors,
       ...origin,
       ...change,
     } as PaletteInput);
 
-    expect(result).toEqual({ error: "Esta paleta tem cores inválidas." });
-    expectNothingPublished();
+    expect(result).toEqual({ error: "This palette has invalid colors." });
+    expectNothingSaved();
   });
 
   it("counts only the user's palettes from the last hour", async () => {
-    await publishPalette({ name: "Mar", colors, ...origin });
+    await savePalette({ name: "Mar", colors, ...origin });
 
     const condition = mocks.where.mock.calls[0][0] as SQL;
     const query = new PgDialect({ casing: "snake_case" }).sqlToQuery(condition);
@@ -146,23 +142,23 @@ describe("publishPalette", () => {
     expect(query.params).toEqual([USER_ID]);
   });
 
-  it("publishes the last palette allowed in the hour", async () => {
-    publishedRecently(9);
+  it("saves the last palette allowed in the hour", async () => {
+    savedRecently(9);
 
-    const result = await publishPalette({ name: "Mar", colors, ...origin });
+    const result = await savePalette({ name: "Mar", colors, ...origin });
 
     expect(result).toEqual({ id: 54 });
     expect(mocks.values).toHaveBeenCalled();
   });
 
-  it("stops publishing after 10 palettes in an hour", async () => {
-    publishedRecently(10);
+  it("stops saving after 10 palettes in an hour", async () => {
+    savedRecently(10);
 
-    const result = await publishPalette({ name: "Mar", colors, ...origin });
+    const result = await savePalette({ name: "Mar", colors, ...origin });
 
     expect(result).toEqual({
-      error: "Você publicou muitas paletas na última hora. Tente mais tarde.",
+      error: "You saved too many palettes in the last hour. Try again later.",
     });
-    expectNothingPublished();
+    expectNothingSaved();
   });
 });

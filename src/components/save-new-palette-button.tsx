@@ -8,14 +8,17 @@ import {
   useState,
   useTransition,
 } from "react";
-import { publishPalette } from "@/app/create/actions";
+import { savePalette } from "@/app/create/actions";
 import { SignInDialog } from "@/components/sign-in-dialog";
 import { authClient } from "@/lib/auth/client";
 import { getInitialDraft, saveDraft, type Draft } from "@/lib/draft";
 
-const PUBLISH_PARAM = "publish";
+const SAVE_PARAM = "save";
 
-export function PublishButton({
+// Saves the draft to the account as a private palette. Publishing it to the
+// gallery is a separate step on the palette's page, so nothing goes public by
+// accident.
+export function SaveNewPaletteButton({
   draft,
   onMissingName,
 }: {
@@ -26,10 +29,10 @@ export function PublishButton({
   const { data: session, isPending: isLoadingSession } =
     authClient.useSession();
   const signInDialog = useRef<HTMLDialogElement>(null);
-  const [publishError, setPublishError] = useState<string | null>(null);
-  const [isPublishing, startPublishing] = useTransition();
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [isSaving, startSaving] = useTransition();
 
-  function publish() {
+  function save() {
     if (!draft.name.trim()) {
       onMissingName();
       return;
@@ -40,10 +43,10 @@ export function PublishButton({
       return;
     }
 
-    startPublishing(async () => {
-      setPublishError(null);
+    startSaving(async () => {
+      setSaveError(null);
 
-      const result = await publishPalette({
+      const result = await savePalette({
         name: draft.name,
         base: draft.base,
         harmony: draft.harmony,
@@ -51,7 +54,7 @@ export function PublishButton({
       });
 
       if (result.error !== undefined) {
-        setPublishError(result.error);
+        setSaveError(result.error);
         return;
       }
 
@@ -60,42 +63,42 @@ export function PublishButton({
     });
   }
 
-  const publishAfterSignIn = useEffectEvent(() => {
+  const saveAfterSignIn = useEffectEvent(() => {
     const url = new URL(window.location.href);
 
-    if (!url.searchParams.has(PUBLISH_PARAM)) return;
+    if (!url.searchParams.has(SAVE_PARAM)) return;
 
-    // Removed before publishing so a reload can't publish the palette twice.
-    url.searchParams.delete(PUBLISH_PARAM);
+    // Removed before saving so a reload can't save the palette twice.
+    url.searchParams.delete(SAVE_PARAM);
     window.history.replaceState(null, "", url);
-    publish();
+    save();
   });
 
   useEffect(() => {
-    if (session) publishAfterSignIn();
+    if (session) saveAfterSignIn();
   }, [session]);
 
   return (
     <div className="flex flex-wrap items-center justify-end gap-x-4 gap-y-2">
-      {publishError && (
+      {saveError && (
         <p role="alert" className="text-sm">
-          {publishError}
+          {saveError}
         </p>
       )}
       <button
         type="button"
         className="rounded-lg bg-foreground px-4 py-2 text-sm font-medium text-background disabled:opacity-40"
-        disabled={isLoadingSession || isPublishing}
-        onClick={publish}
+        disabled={isLoadingSession || isSaving}
+        onClick={save}
       >
-        {isPublishing ? "Publicando…" : "Publicar paleta"}
+        {isSaving ? "Saving…" : "Save palette"}
       </button>
 
       <SignInDialog
         ref={signInDialog}
-        title="Entre para publicar"
-        description="Sua paleta será publicada assim que você entrar."
-        returnTo={`/create?${PUBLISH_PARAM}=1`}
+        title="Sign in to save"
+        description="Your palette is saved to your account, visible only to you, as soon as you sign in."
+        returnTo={`/create?${SAVE_PARAM}=1`}
       />
     </div>
   );

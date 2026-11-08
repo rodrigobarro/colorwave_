@@ -3,7 +3,7 @@ import type { SQL } from "drizzle-orm";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Oklch } from "@/lib/color";
 import type { PaletteInput } from "@/lib/palette-input";
-import { deletePalette, updatePalette } from "./actions";
+import { deletePalette, setPaletteVisibility, updatePalette } from "./actions";
 
 const mocks = vi.hoisted(() => {
   const returning = vi.fn();
@@ -44,10 +44,15 @@ const input: PaletteInput = {
   colors,
 };
 
-function ownedRows(count: number) {
+function ownedRows(count: number, visibility = "public") {
   mocks.returning.mockResolvedValue(
-    Array.from({ length: count }, () => ({ id: 7 })),
+    Array.from({ length: count }, () => ({ id: 7, visibility })),
   );
+}
+
+function expectBothTagsExpired() {
+  expect(mocks.updateTag).toHaveBeenCalledWith("palettes");
+  expect(mocks.updateTag).toHaveBeenCalledWith("palette:7");
 }
 
 function expectOwnershipCondition() {
@@ -73,8 +78,16 @@ describe("updatePalette", () => {
     expect(result).toBeUndefined();
     expect(mocks.set).toHaveBeenCalledWith(input);
     expectOwnershipCondition();
-    expect(mocks.updateTag).toHaveBeenCalledWith("palettes");
-    expect(mocks.updateTag).toHaveBeenCalledWith("palette:7");
+    expectBothTagsExpired();
+  });
+
+  it("leaves the caches alone for a private palette", async () => {
+    ownedRows(1, "private");
+
+    const result = await updatePalette(7, input);
+
+    expect(result).toBeUndefined();
+    expect(mocks.updateTag).not.toHaveBeenCalled();
   });
 
   it("requires a session", async () => {
@@ -123,8 +136,16 @@ describe("deletePalette", () => {
 
     expect(result).toBeUndefined();
     expectOwnershipCondition();
-    expect(mocks.updateTag).toHaveBeenCalledWith("palettes");
-    expect(mocks.updateTag).toHaveBeenCalledWith("palette:7");
+    expectBothTagsExpired();
+  });
+
+  it("leaves the caches alone for a private palette", async () => {
+    ownedRows(1, "private");
+
+    const result = await deletePalette(7);
+
+    expect(result).toBeUndefined();
+    expect(mocks.updateTag).not.toHaveBeenCalled();
   });
 
   it("requires a session", async () => {
@@ -150,5 +171,68 @@ describe("deletePalette", () => {
 
     expect(result).toEqual(NOT_FOUND);
     expect(mocks.db.delete).not.toHaveBeenCalled();
+  });
+});
+
+describe("setPaletteVisibility", () => {
+  it("publishes the user's own palette", async () => {
+    const result = await setPaletteVisibility(7, "public");
+
+    expect(result).toBeUndefined();
+    expectOwnershipCondition();
+    expectBothTagsExpired();
+
+    const [{ visibility, publishedAt }] = mocks.set.mock
+      .calls[0] as unknown as [{ visibility: string; publishedAt: SQL }];
+    const query = new PgDialect({ casing: "snake_case" }).sqlToQuery(
+      publishedAt,
+    );
+
+    expect(visibility).toBe("public");
+    // Keeps the first publication date, so republishing doesn't jump the
+    // palette back to the top of the gallery.
+    expect(query.sql).toBe(`coalesce("palettes"."published_at", now())`);
+  });
+
+  it("makes the user's own palette private", async () => {
+    const result = await setPaletteVisibility(7, "private");
+
+    expect(result).toBeUndefined();
+    expect(mocks.set).toHaveBeenCalledWith({ visibility: "private" });
+    expectOwnershipCondition();
+    expectBothTagsExpired();
+  });
+
+  it("requires a session", async () => {
+    mocks.getSession.mockResolvedValue({ data: null });
+
+    const result = await setPaletteVisibility(7, "public");
+
+    expect(result).toEqual({
+      error: "Sign in to change who sees this palette.",
+    });
+    expect(mocks.db.update).not.toHaveBeenCalled();
+  });
+
+  it("doesn't touch a palette that isn't the user's", async () => {
+    ownedRows(0);
+
+    const result = await setPaletteVisibility(7, "public");
+
+    expect(result).toEqual(NOT_FOUND);
+    expect(mocks.updateTag).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["an unknown visibility", 7, "unlisted"],
+    ["an id that isn't a palette id", 0, "public"],
+  ])("rejects %s", async (_, id, visibility) => {
+    const result = await setPaletteVisibility(
+      id,
+      visibility as "public" | "private",
+    );
+
+    expect(result).toEqual(NOT_FOUND);
+    expect(mocks.db.update).not.toHaveBeenCalled();
   });
 });

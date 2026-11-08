@@ -6,14 +6,14 @@ import { useState, useTransition } from "react";
 import { updatePalette } from "@/app/palette/actions";
 import { PaletteEditor } from "@/components/palette-editor";
 import { SignInButton } from "@/components/sign-in-dialog";
-import { authClient } from "@/lib/auth/client";
 import { isHarmony, isHexColor, toHex } from "@/lib/color";
 import type { Draft } from "@/lib/draft";
 import type { Palette } from "@/lib/palettes";
+import { useOwnPalette } from "@/lib/use-own-palette";
 
 type EditablePalette = Pick<
   Palette,
-  "id" | "name" | "colors" | "base" | "harmony" | "authorId"
+  "id" | "name" | "colors" | "base" | "harmony"
 >;
 
 // Seed palettes have no base or harmony, so the editor starts from the first
@@ -84,42 +84,45 @@ function SaveButton({
   );
 }
 
+function CannotEdit({ paletteId, signedOut, failed }: {
+  paletteId: number;
+  signedOut: boolean;
+  failed: boolean;
+}) {
+  return (
+    <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col items-start gap-4 px-6 pb-16">
+      <h1 className="text-2xl font-semibold tracking-tight">
+        {failed ? "Couldn’t load this palette" : "You can only edit your own palettes"}
+      </h1>
+      <p className="text-sm text-foreground/60">
+        {failed
+          ? "Reload the page to try again."
+          : signedOut
+            ? "Sign in with the account that saved this palette."
+            : "This palette doesn’t exist or isn’t yours."}
+      </p>
+      <div className="flex items-center gap-4">
+        {signedOut && (
+          <SignInButton
+            className="rounded-lg px-3 py-1.5 text-sm ring-1 ring-foreground/15"
+            title="Sign in to edit"
+            description="Use the account that saved this palette."
+          />
+        )}
+        <Link
+          href={`/palette/${paletteId}`}
+          className="text-sm font-medium underline"
+        >
+          Back to the palette
+        </Link>
+      </div>
+    </main>
+  );
+}
+
 // Edits stay in memory, so they never overwrite the new-palette draft.
-export function EditPalette({ palette }: { palette: EditablePalette }) {
-  const { data: session, isPending } = authClient.useSession();
+function Editor({ palette }: { palette: EditablePalette }) {
   const [draft, setDraft] = useState(() => toDraft(palette));
-
-  if (isPending) return <main className="flex-1" />;
-
-  if (!palette.authorId || session?.user.id !== palette.authorId) {
-    return (
-      <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col items-start gap-4 px-6 pb-16">
-        <h1 className="text-2xl font-semibold tracking-tight">
-          You can only edit your own palettes
-        </h1>
-        <p className="text-sm text-foreground/60">
-          {session
-            ? "This palette was published by someone else."
-            : "Sign in with the account that published this palette."}
-        </p>
-        <div className="flex items-center gap-4">
-          {!session && (
-            <SignInButton
-              className="rounded-lg px-3 py-1.5 text-sm ring-1 ring-foreground/15"
-              title="Sign in to edit"
-              description="Use the account that published this palette."
-            />
-          )}
-          <Link
-            href={`/palette/${palette.id}`}
-            className="text-sm font-medium underline"
-          >
-            Back to the palette
-          </Link>
-        </div>
-      </main>
-    );
-  }
 
   return (
     <PaletteEditor
@@ -135,4 +138,24 @@ export function EditPalette({ palette }: { palette: EditablePalette }) {
       )}
     />
   );
+}
+
+// Loaded in the browser with the author's session, never rendered on the
+// server, so a private palette's colors can't reach anyone else.
+export function EditPalette({ paletteId }: { paletteId: number }) {
+  const own = useOwnPalette(paletteId);
+
+  if (own.status === "loading") return <main className="flex-1" />;
+
+  if (own.status !== "ready") {
+    return (
+      <CannotEdit
+        paletteId={paletteId}
+        signedOut={own.status === "signed-out"}
+        failed={own.status === "failed"}
+      />
+    );
+  }
+
+  return <Editor palette={own.palette} />;
 }

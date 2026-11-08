@@ -3,25 +3,22 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { EditPalette } from "@/components/edit-palette";
 import { parsePaletteId } from "@/lib/palette-input";
-import { getPalette } from "@/lib/palettes";
 
 export const metadata: Metadata = {
   title: "Edit palette · Colorwave",
+  robots: { index: false },
 };
 
 async function PaletteToEdit({
   params,
 }: Pick<PageProps<"/palette/[id]/edit">, "params">) {
   const id = parsePaletteId((await params).id);
-  const palette = id ? await getPalette(id) : null;
 
-  if (!palette) notFound();
+  if (!id) notFound();
 
-  const { name, colors, base, harmony, authorId } = palette;
-
-  return (
-    <EditPalette palette={{ id: palette.id, name, colors, base, harmony, authorId }} />
-  );
+  // Only the author can edit, and the palette may be private, so its data is
+  // loaded in the browser with their session instead of rendered here.
+  return <EditPalette paletteId={id} />;
 }
 
 export default function EditPalettePage({
