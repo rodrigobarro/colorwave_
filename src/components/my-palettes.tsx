@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
 import { PaletteCard } from "@/components/palette-card";
 import { SignInButton } from "@/components/sign-in-dialog";
@@ -73,14 +72,8 @@ export function MyPalettes() {
   }
 
   if (result.palettes.length === 0) {
-    return (
-      <Message>
-        <p>You haven’t saved any palettes yet.</p>
-        <Link href="/create" className={buttonClassName}>
-          Create a palette
-        </Link>
-      </Message>
-    );
+    // The page header's "New palette" is the way to start one.
+    return <Message>You haven’t saved any palettes yet.</Message>;
   }
 
   return (
