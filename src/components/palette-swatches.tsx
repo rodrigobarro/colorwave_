@@ -10,7 +10,7 @@ export function PaletteSwatches({
   className = "h-32",
 }: {
   colors: readonly Oklch[];
-  // Sets the height.
+  // Sets the size: a height, or an aspect ratio with a max height.
   className?: string;
 }) {
   const [copied, setCopied] = useState<Copied | null>(null);
