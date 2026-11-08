@@ -5,6 +5,7 @@ import { updateTag } from "next/cache";
 import { db } from "@/db";
 import { palettes } from "@/db/schema";
 import { auth } from "@/lib/auth/server";
+import { PALETTE_LIST_TAG, paletteTag } from "@/lib/cache-tags";
 import {
   parsePaletteId,
   parsePaletteInput,
@@ -53,7 +54,8 @@ export async function updatePalette(paletteId: number, input: PaletteInput) {
 
   if (updated.length === 0) return { error: NOT_FOUND };
 
-  updateTag("palettes");
+  updateTag(PALETTE_LIST_TAG);
+  updateTag(paletteTag(id));
 }
 
 export async function deletePalette(paletteId: number) {
@@ -72,5 +74,6 @@ export async function deletePalette(paletteId: number) {
 
   if (deleted.length === 0) return { error: NOT_FOUND };
 
-  updateTag("palettes");
+  updateTag(PALETTE_LIST_TAG);
+  updateTag(paletteTag(id));
 }

@@ -5,6 +5,7 @@ import { updateTag } from "next/cache";
 import { db } from "@/db";
 import { palettes } from "@/db/schema";
 import { auth } from "@/lib/auth/server";
+import { PALETTE_LIST_TAG } from "@/lib/cache-tags";
 import { parsePaletteInput, type PaletteInput } from "@/lib/palette-input";
 
 const PUBLISH_LIMIT_PER_HOUR = 10;
@@ -47,7 +48,8 @@ export async function publishPalette(input: PaletteInput) {
     .values({ ...parsed.palette, authorId: session.user.id })
     .returning({ id: palettes.id });
 
-  updateTag("palettes");
+  // A new palette only changes the lists; no palette page cached it yet.
+  updateTag(PALETTE_LIST_TAG);
 
   return { id };
 }

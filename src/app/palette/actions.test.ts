@@ -74,6 +74,7 @@ describe("updatePalette", () => {
     expect(mocks.set).toHaveBeenCalledWith(input);
     expectOwnershipCondition();
     expect(mocks.updateTag).toHaveBeenCalledWith("palettes");
+    expect(mocks.updateTag).toHaveBeenCalledWith("palette:7");
   });
 
   it("requires a session", async () => {
@@ -123,6 +124,7 @@ describe("deletePalette", () => {
     expect(result).toBeUndefined();
     expectOwnershipCondition();
     expect(mocks.updateTag).toHaveBeenCalledWith("palettes");
+    expect(mocks.updateTag).toHaveBeenCalledWith("palette:7");
   });
 
   it("requires a session", async () => {
