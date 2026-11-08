@@ -1,11 +1,11 @@
-import { count, desc, eq } from "drizzle-orm";
 import { cacheLife, cacheTag } from "next/cache";
-import { db } from "@/db";
-import { authUsers } from "@/db/auth-schema";
-import { palettes } from "@/db/schema";
 import { PALETTE_LIST_TAG, paletteTag } from "@/lib/cache-tags";
+import {
+  authorQueries,
+  PAGE_SIZE,
+  publicQueries,
+} from "@/lib/palette-queries";
 
-const PAGE_SIZE = 12;
 const PRERENDERED_PALETTES = 100;
 
 export async function getPageCount() {
@@ -13,37 +13,17 @@ export async function getPageCount() {
   cacheLife("max");
   cacheTag(PALETTE_LIST_TAG);
 
-  const [{ total }] = await db.select({ total: count() }).from(palettes);
+  const [{ total }] = await publicQueries.count();
 
   return Math.ceil(total / PAGE_SIZE);
 }
-
-const summary = {
-  id: palettes.id,
-  name: palettes.name,
-  colors: palettes.colors,
-};
 
 export async function getPalettePage(page: number) {
   "use cache";
   cacheLife("max");
   cacheTag(PALETTE_LIST_TAG);
 
-  return db
-    .select(summary)
-    .from(palettes)
-    .orderBy(desc(palettes.id))
-    .limit(PAGE_SIZE)
-    .offset((page - 1) * PAGE_SIZE);
-}
-
-// Not cached: only the author sees this list, and it must reflect their edits.
-export function getPalettesByAuthor(authorId: string) {
-  return db
-    .select(summary)
-    .from(palettes)
-    .where(eq(palettes.authorId, authorId))
-    .orderBy(desc(palettes.id));
+  return publicQueries.page(page);
 }
 
 // The newest palettes are prerendered at build; the rest render on first visit.
@@ -52,34 +32,30 @@ export async function getPrerenderedPaletteIds() {
   cacheLife("max");
   cacheTag(PALETTE_LIST_TAG);
 
-  const rows = await db
-    .select({ id: palettes.id })
-    .from(palettes)
-    .orderBy(desc(palettes.id))
-    .limit(PRERENDERED_PALETTES);
+  const rows = await publicQueries.newestIds(PRERENDERED_PALETTES);
 
   return rows.map(({ id }) => id);
 }
 
+// Cached and shared by every visitor, so it only ever returns public palettes.
+// A private one reads as missing here; its author loads it with getOwnPalette.
 export async function getPalette(id: number) {
   "use cache";
   cacheLife("max");
   cacheTag(paletteTag(id));
 
-  const [palette] = await db
-    .select({
-      id: palettes.id,
-      name: palettes.name,
-      colors: palettes.colors,
-      base: palettes.base,
-      harmony: palettes.harmony,
-      authorId: palettes.authorId,
-      authorName: authUsers.name,
-      createdAt: palettes.createdAt,
-    })
-    .from(palettes)
-    .leftJoin(authUsers, eq(palettes.authorId, authUsers.id))
-    .where(eq(palettes.id, id));
+  const [palette] = await publicQueries.palette(id);
+
+  return palette ?? null;
+}
+
+// Not cached: only the author sees these, and they must reflect their edits.
+export function getPalettesByAuthor(authorId: string) {
+  return authorQueries.list(authorId);
+}
+
+export async function getOwnPalette(id: number, authorId: string) {
+  const [palette] = await authorQueries.palette(id, authorId);
 
   return palette ?? null;
 }
@@ -88,4 +64,4 @@ export type PaletteSummary = Awaited<
   ReturnType<typeof getPalettesByAuthor>
 >[number];
 
-export type Palette = NonNullable<Awaited<ReturnType<typeof getPalette>>>;
+export type Palette = NonNullable<Awaited<ReturnType<typeof getOwnPalette>>>;

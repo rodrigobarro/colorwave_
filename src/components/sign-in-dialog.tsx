@@ -83,7 +83,7 @@ export function SignInDialog({
 export function SignInButton({
   className,
   title = "Sign in to Colorwave",
-  description = "Publish palettes and edit the ones you made.",
+  description = "Save palettes, publish them and edit the ones you made.",
   returnTo,
 }: {
   className: string;

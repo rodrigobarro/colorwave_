@@ -1,19 +1,19 @@
 "use server";
 
 import { and, count, eq, gt, sql } from "drizzle-orm";
-import { updateTag } from "next/cache";
 import { db } from "@/db";
 import { palettes } from "@/db/schema";
 import { auth } from "@/lib/auth/server";
-import { PALETTE_LIST_TAG } from "@/lib/cache-tags";
 import { parsePaletteInput, type PaletteInput } from "@/lib/palette-input";
 
-const PUBLISH_LIMIT_PER_HOUR = 10;
+const SAVE_LIMIT_PER_HOUR = 10;
 
-export async function publishPalette(input: PaletteInput) {
+// Saves a new palette to the author's account. It starts private, so nothing
+// shared changes and no cache needs to expire; publishing is a separate step.
+export async function savePalette(input: PaletteInput) {
   const { data: session } = await auth.getSession();
 
-  if (!session?.user) return { error: "Entre para publicar a paleta." };
+  if (!session?.user) return { error: "Sign in to save the palette." };
 
   const parsed = parsePaletteInput(input);
 
@@ -21,8 +21,8 @@ export async function publishPalette(input: PaletteInput) {
     return {
       error:
         parsed.problem === "name"
-          ? "Dê um nome à paleta antes de publicar."
-          : "Esta paleta tem cores inválidas.",
+          ? "Give the palette a name before saving."
+          : "This palette has invalid colors.",
     };
   }
 
@@ -37,19 +37,16 @@ export async function publishPalette(input: PaletteInput) {
       ),
     );
 
-  if (recent >= PUBLISH_LIMIT_PER_HOUR) {
+  if (recent >= SAVE_LIMIT_PER_HOUR) {
     return {
-      error: "Você publicou muitas paletas na última hora. Tente mais tarde.",
+      error: "You saved too many palettes in the last hour. Try again later.",
     };
   }
 
   const [{ id }] = await db
     .insert(palettes)
-    .values({ ...parsed.palette, authorId: session.user.id })
+    .values({ ...parsed.palette, authorId: session.user.id, visibility: "private" })
     .returning({ id: palettes.id });
-
-  // A new palette only changes the lists; no palette page cached it yet.
-  updateTag(PALETTE_LIST_TAG);
 
   return { id };
 }

@@ -58,7 +58,7 @@ export function MyPalettes() {
   if (!session) {
     return (
       <Message>
-        <p>Sign in to see the palettes you published.</p>
+        <p>Sign in to see the palettes you saved.</p>
         <SignInButton className={buttonClassName} />
       </Message>
     );
@@ -75,7 +75,7 @@ export function MyPalettes() {
   if (result.palettes.length === 0) {
     return (
       <Message>
-        <p>You haven’t published any palettes yet.</p>
+        <p>You haven’t saved any palettes yet.</p>
         <Link href="/create" className={buttonClassName}>
           Create a palette
         </Link>

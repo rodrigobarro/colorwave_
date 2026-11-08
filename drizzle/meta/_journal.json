@@ -29,6 +29,13 @@
       "when": 1793934001167,
       "tag": "0003_add_palette_origin",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1794169119269,
+      "tag": "0004_add_palette_visibility",
+      "breakpoints": true
     }
   ]
 }
