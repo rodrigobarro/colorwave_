@@ -74,6 +74,7 @@ describe("publishPalette", () => {
       authorId: USER_ID,
     });
     expect(mocks.updateTag).toHaveBeenCalledWith("palettes");
+    expect(mocks.updateTag).toHaveBeenCalledTimes(1);
   });
 
   it("requires a session", async () => {

@@ -91,10 +91,57 @@ async function PaletteDetails({
   );
 }
 
+const skeletonBlock = "rounded-md bg-foreground/10";
+
+// Part of the App Shell, so it is prefetched with every palette link and shows
+// the moment one is clicked. It mirrors the page's layout so the content
+// replaces it without moving anything.
+function PaletteSkeleton() {
+  return (
+    <>
+      <p role="status" className="sr-only">
+        Loading palette…
+      </p>
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <BackLink href="/">Gallery</BackLink>
+      </div>
+
+      <div
+        aria-hidden
+        className="flex animate-pulse flex-col gap-8 motion-reduce:animate-none"
+      >
+        <div className="flex flex-col gap-1">
+          <div className={`h-8 w-56 ${skeletonBlock}`} />
+          <div className={`h-5 w-40 ${skeletonBlock}`} />
+        </div>
+
+        <div className="h-64 rounded-xl bg-foreground/10" />
+
+        <div className="flex flex-col gap-3">
+          <div className={`h-5 w-14 ${skeletonBlock}`} />
+          <ul className="grid gap-x-6 gap-y-2 sm:grid-cols-2">
+            {Array.from({ length: 5 }, (_, index) => (
+              <li key={index} className="flex h-4 items-center gap-3">
+                <span className={`size-4 shrink-0 ${skeletonBlock}`} />
+                <span className={`h-3 w-48 ${skeletonBlock}`} />
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <div className="flex flex-col gap-3">
+          <div className={`h-5 w-16 ${skeletonBlock}`} />
+          <div className="h-24 rounded-xl bg-foreground/10" />
+        </div>
+      </div>
+    </>
+  );
+}
+
 export default function PalettePage({ params }: PageProps<"/palette/[id]">) {
   return (
     <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-8 px-6 pb-16">
-      <Suspense>
+      <Suspense fallback={<PaletteSkeleton />}>
         <PaletteDetails params={params} />
       </Suspense>
     </main>

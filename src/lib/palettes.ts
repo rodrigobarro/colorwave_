@@ -3,6 +3,7 @@ import { cacheLife, cacheTag } from "next/cache";
 import { db } from "@/db";
 import { authUsers } from "@/db/auth-schema";
 import { palettes } from "@/db/schema";
+import { PALETTE_LIST_TAG, paletteTag } from "@/lib/cache-tags";
 
 const PAGE_SIZE = 12;
 const PRERENDERED_PALETTES = 100;
@@ -10,7 +11,7 @@ const PRERENDERED_PALETTES = 100;
 export async function getPageCount() {
   "use cache";
   cacheLife("max");
-  cacheTag("palettes");
+  cacheTag(PALETTE_LIST_TAG);
 
   const [{ total }] = await db.select({ total: count() }).from(palettes);
 
@@ -26,7 +27,7 @@ const summary = {
 export async function getPalettePage(page: number) {
   "use cache";
   cacheLife("max");
-  cacheTag("palettes");
+  cacheTag(PALETTE_LIST_TAG);
 
   return db
     .select(summary)
@@ -49,7 +50,7 @@ export function getPalettesByAuthor(authorId: string) {
 export async function getPrerenderedPaletteIds() {
   "use cache";
   cacheLife("max");
-  cacheTag("palettes");
+  cacheTag(PALETTE_LIST_TAG);
 
   const rows = await db
     .select({ id: palettes.id })
@@ -63,7 +64,7 @@ export async function getPrerenderedPaletteIds() {
 export async function getPalette(id: number) {
   "use cache";
   cacheLife("max");
-  cacheTag("palettes");
+  cacheTag(paletteTag(id));
 
   const [palette] = await db
     .select({
