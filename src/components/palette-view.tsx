@@ -1,6 +1,6 @@
 import { BackLink } from "@/components/back-link";
-import { GradientPreview } from "@/components/gradient-preview";
 import { PaletteOwnerActions } from "@/components/palette-owner-actions";
+import { PalettePreviews } from "@/components/palette-previews";
 import { PaletteSwatches } from "@/components/palette-swatches";
 import { toCss, toHex } from "@/lib/color";
 import type { Palette } from "@/lib/palettes";
@@ -74,10 +74,7 @@ export function PaletteView({ palette }: { palette: PaletteViewData }) {
         </ul>
       </section>
 
-      <section className="flex flex-col gap-3">
-        <h2 className="text-sm font-medium">Gradient</h2>
-        <GradientPreview colors={colors} />
-      </section>
+      <PalettePreviews colors={colors} paletteName={name} />
     </>
   );
 }
@@ -120,7 +117,8 @@ export function PaletteSkeleton() {
           </ul>
         </div>
 
-        <div className="flex flex-col gap-3">
+        {/* The previews heading and the first preview, the gradient. */}
+        <div className="flex flex-col gap-6">
           <div className={`h-5 w-16 ${skeletonBlock}`} />
           <div className="h-24 rounded-xl bg-foreground/10" />
         </div>
