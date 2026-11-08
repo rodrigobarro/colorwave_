@@ -14,6 +14,11 @@ const dateFormat = new Intl.DateTimeFormat("en", {
   timeZone: "UTC",
 });
 
+// The swatches keep a 2:1 shape as the page narrows, so on a phone they don't
+// turn into a near-square block, and stop growing at 16rem on wider screens.
+// Shared with the skeleton so the two always match.
+const swatchesSize = "aspect-[2/1] max-h-64";
+
 async function findPalette(params: PageProps<"/palette/[id]">["params"]) {
   const id = parsePaletteId((await params).id);
 
@@ -64,7 +69,7 @@ async function PaletteDetails({
         </p>
       </header>
 
-      <PaletteSwatches colors={colors} className="h-64" />
+      <PaletteSwatches colors={colors} className={swatchesSize} />
 
       <section className="flex flex-col gap-3">
         <h2 className="text-sm font-medium">Colors</h2>
@@ -115,7 +120,7 @@ function PaletteSkeleton() {
           <div className={`h-5 w-40 ${skeletonBlock}`} />
         </div>
 
-        <div className="h-64 rounded-xl bg-foreground/10" />
+        <div className={`rounded-xl bg-foreground/10 ${swatchesSize}`} />
 
         <div className="flex flex-col gap-3">
           <div className={`h-5 w-14 ${skeletonBlock}`} />
