@@ -3,7 +3,7 @@
 import { useState, type ReactNode } from "react";
 import { BackLink } from "@/components/back-link";
 import { ColorControls } from "@/components/color-controls";
-import { GradientPreview } from "@/components/gradient-preview";
+import { EditorPreviews } from "@/components/editor-previews";
 import {
   generateColors,
   getGamut,
@@ -265,10 +265,10 @@ export function PaletteEditor({
           />
         </section>
 
-        <section className="flex flex-col gap-4">
-          <h2 className="text-sm font-medium">Prévia do gradiente</h2>
-          <GradientPreview colors={colors} />
-        </section>
+        <EditorPreviews
+          colors={colors}
+          paletteName={draft.name.trim() || "nova paleta"}
+        />
       </div>
     </main>
   );

@@ -16,7 +16,7 @@ function frameStyle(frame: PreviewDefinition["frame"]) {
     : { aspectRatio: frame.aspectRatio, minWidth: frame.minWidth };
 }
 
-function PreviewFrame({
+export function PreviewFrame({
   preview,
   colors,
   paletteName,
