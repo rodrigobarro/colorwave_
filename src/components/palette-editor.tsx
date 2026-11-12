@@ -3,7 +3,7 @@
 import { useState, type ReactNode } from "react";
 import { BackLink } from "@/components/back-link";
 import { ColorControls } from "@/components/color-controls";
-import { EditorPreviews } from "@/components/editor-previews";
+import { PalettePreviews } from "@/components/palette-previews";
 import {
   generateColors,
   getGamut,
@@ -265,9 +265,10 @@ export function PaletteEditor({
           />
         </section>
 
-        <EditorPreviews
+        <PalettePreviews
           colors={colors}
           paletteName={draft.name.trim() || "nova paleta"}
+          title="Prévias"
         />
       </div>
     </main>
