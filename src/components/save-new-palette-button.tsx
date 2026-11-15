@@ -12,6 +12,8 @@ import { savePalette } from "@/app/create/actions";
 import { SignInDialog } from "@/components/sign-in-dialog";
 import { authClient } from "@/lib/auth/client";
 import { getInitialDraft, saveDraft, type Draft } from "@/lib/draft";
+import { writeDraftImage } from "@/lib/draft-image";
+import { toPaletteInput } from "@/lib/palette-input";
 
 const SAVE_PARAM = "save";
 
@@ -46,12 +48,7 @@ export function SaveNewPaletteButton({
     startSaving(async () => {
       setSaveError(null);
 
-      const result = await savePalette({
-        name: draft.name,
-        base: draft.base,
-        harmony: draft.harmony,
-        colors: draft.colors,
-      });
+      const result = await savePalette(toPaletteInput(draft));
 
       if (result.error !== undefined) {
         setSaveError(result.error);
@@ -59,6 +56,7 @@ export function SaveNewPaletteButton({
       }
 
       saveDraft(getInitialDraft());
+      writeDraftImage(null);
       router.push(`/palette/${result.id}`);
     });
   }

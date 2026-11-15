@@ -9,6 +9,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 import type { Harmony, Oklch } from "@/lib/color";
+import type { PaletteSource } from "@/lib/draft";
 import type { Visibility } from "@/lib/visibility";
 
 export const palettes = pgTable("palettes", {
@@ -16,7 +17,9 @@ export const palettes = pgTable("palettes", {
   name: text().notNull(),
   colors: jsonb().$type<readonly Oklch[]>().notNull(),
   purpose: text().notNull().default("gradient"),
-  // What the editor started from. Seed palettes predate these and have none.
+  // What the editor started from. Seed palettes predate these and have none;
+  // palettes made from an image have a source but no base or harmony.
+  source: text().$type<PaletteSource>(),
   base: text(),
   harmony: text().$type<Harmony>(),
   authorId: uuid(),
@@ -27,6 +30,7 @@ export const palettes = pgTable("palettes", {
   publishedAt: timestamp({ withTimezone: true }),
 }, (table) => [
   check("palettes_visibility_check", sql`${table.visibility} in ('public', 'private')`),
+  check("palettes_source_check", sql`${table.source} in ('harmony', 'image')`),
   check(
     "palettes_public_published_check",
     sql`${table.visibility} = 'private' or ${table.publishedAt} is not null`,

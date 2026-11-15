@@ -23,6 +23,7 @@ const summary = {
 
 const details = {
   ...summary,
+  source: palettes.source,
   base: palettes.base,
   harmony: palettes.harmony,
   authorId: palettes.authorId,

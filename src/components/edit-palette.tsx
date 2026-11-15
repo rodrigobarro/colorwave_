@@ -8,22 +8,33 @@ import { PaletteEditor } from "@/components/palette-editor";
 import { SignInButton } from "@/components/sign-in-dialog";
 import { isHarmony, isHexColor, toHex } from "@/lib/color";
 import type { Draft } from "@/lib/draft";
+import { toPaletteInput } from "@/lib/palette-input";
 import type { Palette } from "@/lib/palettes";
+import { releaseSourceImage, type SourceImage } from "@/lib/source-image";
 import { useOwnPalette } from "@/lib/use-own-palette";
 
 type EditablePalette = Pick<
   Palette,
-  "id" | "name" | "colors" | "base" | "harmony"
+  "id" | "name" | "colors" | "source" | "base" | "harmony"
 >;
 
-// Seed palettes have no base or harmony, so the editor starts from the first
-// color. The stored colors still win, as manual adjustments.
-function toDraft({ name, colors, base, harmony }: EditablePalette): Draft {
+// Seed palettes and palettes made from an image have no base or harmony, so
+// the harmony tab starts from the first color. The stored colors still win, as
+// manual adjustments.
+function toDraft({
+  name,
+  colors,
+  source,
+  base,
+  harmony,
+}: EditablePalette): Draft {
   return {
     name,
     colors,
+    source: source === "image" ? "image" : "harmony",
     base: isHexColor(base) ? base : toHex(colors[0]).toLowerCase(),
     harmony: isHarmony(harmony) ? harmony : "analogous",
+    imageStyle: "dominant",
   };
 }
 
@@ -49,12 +60,7 @@ function SaveButton({
     startSaving(async () => {
       setSaveError(null);
 
-      const result = await updatePalette(paletteId, {
-        name: draft.name,
-        base: draft.base,
-        harmony: draft.harmony,
-        colors: draft.colors,
-      });
+      const result = await updatePalette(paletteId, toPaletteInput(draft));
 
       if (result?.error) {
         setSaveError(result.error);
@@ -123,11 +129,17 @@ function CannotEdit({ paletteId, signedOut, failed }: {
 // Edits stay in memory, so they never overwrite the new-palette draft.
 function Editor({ palette }: { palette: EditablePalette }) {
   const [draft, setDraft] = useState(() => toDraft(palette));
+  const [image, setImage] = useState<SourceImage | null>(null);
 
   return (
     <PaletteEditor
       draft={draft}
       onChange={setDraft}
+      image={image}
+      onImageChange={(next) => {
+        releaseSourceImage(image);
+        setImage(next);
+      }}
       backHref={`/palette/${palette.id}`}
       renderAction={(requireName) => (
         <SaveButton
