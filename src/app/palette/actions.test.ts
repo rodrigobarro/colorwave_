@@ -39,6 +39,7 @@ const colors: Oklch[] = [
 ];
 const input: PaletteInput = {
   name: "Mar",
+  source: "harmony",
   base: "#2f6fde",
   harmony: "triadic",
   colors,
@@ -79,6 +80,19 @@ describe("updatePalette", () => {
     expect(mocks.set).toHaveBeenCalledWith(input);
     expectOwnershipCondition();
     expectBothTagsExpired();
+  });
+
+  it("clears the base and harmony of a palette now made from an image", async () => {
+    const result = await updatePalette(7, { name: "Mar", colors, source: "image" });
+
+    expect(result).toBeUndefined();
+    expect(mocks.set).toHaveBeenCalledWith({
+      name: "Mar",
+      colors,
+      source: "image",
+      base: null,
+      harmony: null,
+    });
   });
 
   it("leaves the caches alone for a private palette", async () => {
@@ -137,6 +151,19 @@ describe("deletePalette", () => {
     expect(result).toBeUndefined();
     expectOwnershipCondition();
     expectBothTagsExpired();
+  });
+
+  it("clears the base and harmony of a palette now made from an image", async () => {
+    const result = await updatePalette(7, { name: "Mar", colors, source: "image" });
+
+    expect(result).toBeUndefined();
+    expect(mocks.set).toHaveBeenCalledWith({
+      name: "Mar",
+      colors,
+      source: "image",
+      base: null,
+      harmony: null,
+    });
   });
 
   it("leaves the caches alone for a private palette", async () => {

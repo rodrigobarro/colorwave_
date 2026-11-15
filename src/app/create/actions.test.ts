@@ -33,7 +33,11 @@ const colors: Oklch[] = [
   [0.4, 0.1, 200],
   [0.7, 0.15, 220],
 ];
-const origin = { base: "#2f6fde", harmony: "analogous" } as const;
+const origin = {
+  source: "harmony",
+  base: "#2f6fde",
+  harmony: "analogous",
+} as const;
 
 function signIn() {
   mocks.getSession.mockResolvedValue({ data: { user: { id: USER_ID } } });
@@ -59,6 +63,7 @@ describe("savePalette", () => {
     const result = await savePalette({
       name: "  Mar  ",
       colors,
+      source: "harmony",
       base: "#2F6FDE",
       harmony: "analogous",
     });
@@ -71,6 +76,35 @@ describe("savePalette", () => {
       authorId: USER_ID,
       visibility: "private",
     });
+  });
+
+  it("saves a palette made from an image without a base or harmony", async () => {
+    const result = await savePalette({ name: "Mar", colors, source: "image" });
+
+    expect(result).toEqual({ id: 54 });
+    expect(mocks.values).toHaveBeenCalledWith({
+      name: "Mar",
+      colors,
+      source: "image",
+      base: null,
+      harmony: null,
+      authorId: USER_ID,
+      visibility: "private",
+    });
+  });
+
+  it("treats input without a source, from a tab opened before images, as a harmony", async () => {
+    const result = await savePalette({
+      name: "Mar",
+      colors,
+      base: origin.base,
+      harmony: origin.harmony,
+    } as unknown as PaletteInput);
+
+    expect(result).toEqual({ id: 54 });
+    expect(mocks.values).toHaveBeenCalledWith(
+      expect.objectContaining({ source: "harmony" }),
+    );
   });
 
   it("requires a session", async () => {
@@ -118,6 +152,7 @@ describe("savePalette", () => {
   it.each([
     ["an invalid base", { base: "blue" }],
     ["an unknown harmony", { harmony: "tetradic" }],
+    ["an unknown source", { source: "camera" }],
   ])("rejects %s", async (_, change) => {
     const result = await savePalette({
       name: "Mar",

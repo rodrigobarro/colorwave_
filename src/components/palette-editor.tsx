@@ -1,8 +1,10 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useId, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { BackLink } from "@/components/back-link";
 import { ColorControls } from "@/components/color-controls";
+import { ColorStrip } from "@/components/color-strip";
+import { ImageSource } from "@/components/image-source";
 import { PalettePreviews } from "@/components/palette-previews";
 import {
   generateColors,
@@ -16,43 +18,108 @@ import {
   type Harmony,
   type Oklch,
 } from "@/lib/color";
-import { MAX_NAME_LENGTH, type Draft } from "@/lib/draft";
+import { MAX_NAME_LENGTH, type Draft, type PaletteSource } from "@/lib/draft";
+import type { SourceImage } from "@/lib/source-image";
 
 const harmonyNames = Object.keys(harmonies) as Harmony[];
 
 const actionClassName =
   "rounded-lg px-3 py-1.5 text-sm ring-1 ring-foreground/15 disabled:opacity-40";
 
-function ColorStrip({ colors }: { colors: readonly Oklch[] }) {
+const sourceTabClassName =
+  "flex-1 rounded-md px-3 py-1.5 text-sm aria-selected:bg-foreground aria-selected:text-background";
+
+const sourceTabs: { source: PaletteSource; label: string }[] = [
+  { source: "harmony", label: "Color + harmony" },
+  { source: "image", label: "Image" },
+];
+
+type Origin = Pick<Draft, "source" | "base" | "harmony" | "imageStyle">;
+
+// The colors the draft's source generates, before any manual adjustment. Null
+// while a palette made from an image doesn't have its image loaded.
+function sourceColors(
+  { source, base, harmony, imageStyle }: Origin,
+  image: SourceImage | null,
+) {
+  if (source === "image") return image?.palettes[imageStyle] ?? null;
+
+  return generateColors(base, harmony);
+}
+
+function isEdited(draft: Draft, image: SourceImage | null) {
+  const generated = sourceColors(draft, image);
+
   return (
-    // The segments are empty, so a browser that doesn't stretch this strip
-    // inside the harmony buttons (iOS WebKit) collapses it to 0 without w-full.
-    <span aria-hidden className="flex h-8 w-full overflow-hidden rounded-md">
-      {colors.map((color, index) => (
-        <span
-          key={index}
-          className="flex-1"
-          style={{ backgroundColor: toCss(color) }}
-        />
-      ))}
-    </span>
+    !generated || JSON.stringify(draft.colors) !== JSON.stringify(generated)
   );
 }
 
-function isEdited({ base, harmony, colors }: Draft) {
+function HarmonySource({
+  draft,
+  onGenerate,
+}: {
+  draft: Draft;
+  onGenerate: (changes: Partial<Origin>) => void;
+}) {
+  // A palette made from an image keeps the last harmony settings, but none of
+  // them is what its colors come from.
+  const isActive = draft.source === "harmony";
+
   return (
-    JSON.stringify(colors) !== JSON.stringify(generateColors(base, harmony))
+    <>
+      <label className="flex cursor-pointer items-center justify-between text-sm font-medium">
+        Cor base
+        <span className="flex items-center gap-3">
+          <span className="font-mono font-normal text-foreground/60">
+            {draft.base}
+          </span>
+          <input
+            type="color"
+            className="color-swatch size-10 rounded-xl ring-1 ring-foreground/10"
+            value={draft.base}
+            onChange={(event) =>
+              onGenerate({ source: "harmony", base: event.target.value })
+            }
+          />
+        </span>
+      </label>
+
+      <section className="flex flex-col gap-2">
+        <h3 className="text-sm font-medium">Harmonia</h3>
+        <div className="grid grid-cols-2 gap-2">
+          {harmonyNames.map((harmony) => (
+            <button
+              key={harmony}
+              type="button"
+              aria-pressed={isActive && harmony === draft.harmony}
+              className="flex flex-col gap-2 rounded-lg p-2 text-left text-xs ring-1 ring-foreground/15 aria-pressed:ring-2 aria-pressed:ring-foreground"
+              onClick={() => onGenerate({ source: "harmony", harmony })}
+            >
+              <ColorStrip colors={generateColors(draft.base, harmony)} />
+              {harmonies[harmony].label}
+            </button>
+          ))}
+        </div>
+      </section>
+    </>
   );
 }
 
 export function PaletteEditor({
   draft,
   onChange,
+  image,
+  onImageChange,
   backHref,
   renderAction,
 }: {
   draft: Draft;
   onChange: (draft: Draft) => void;
+  // The image the palette is made from, if one was picked. Kept by the page,
+  // which decides whether it survives a reload.
+  image: SourceImage | null;
+  onImageChange: (image: SourceImage | null) => void;
   backHref: string;
   // Receives a callback that flags the missing name and focuses its input.
   renderAction: (requireName: () => void) => ReactNode;
@@ -63,6 +130,12 @@ export function PaletteEditor({
   // Kept in state, not a ref, because renderAction gets requireName during
   // render and a ref read there would break the React Compiler's rules.
   const [nameInput, setNameInput] = useState<HTMLInputElement | null>(null);
+  // Null until the user picks a tab, so it follows the draft's source, which a
+  // restored draft only has after hydration.
+  const [chosenTab, setChosenTab] = useState<PaletteSource | null>(null);
+  const tabs = useRef<(HTMLButtonElement | null)[]>([]);
+  const id = useId();
+  const tab = chosenTab ?? draft.source;
 
   const { colors } = draft;
   const selectedIndex = Math.min(selected, colors.length - 1);
@@ -72,24 +145,53 @@ export function PaletteEditor({
     nameInput?.focus();
   }
 
-  function generate(base: string, harmony: Harmony) {
-    if (isEdited(draft)) setPrevious(draft);
+  // Replaces the colors with what the new origin generates, keeping the manual
+  // adjustments it overwrites for undo.
+  function generate(changes: Partial<Origin>, nextImage = image) {
+    const next = { ...draft, ...changes };
+    const colors = sourceColors(next, nextImage);
 
-    onChange({
-      ...draft,
-      base,
-      harmony,
-      colors: generateColors(base, harmony),
-    });
+    if (!colors) return;
+    if (isEdited(draft, image)) setPrevious(draft);
+
+    onChange({ ...next, colors });
   }
 
   function undo() {
     if (!previous) return;
 
-    const { base, harmony, colors } = previous;
+    const { source, base, harmony, imageStyle, colors } = previous;
 
-    onChange({ ...draft, base, harmony, colors });
+    onChange({ ...draft, source, base, harmony, imageStyle, colors });
     setPrevious(null);
+  }
+
+  function pickImage(next: SourceImage) {
+    onImageChange(next);
+    generate({ source: "image" }, next);
+  }
+
+  function selectTab(index: number) {
+    const next = (index + sourceTabs.length) % sourceTabs.length;
+
+    setChosenTab(sourceTabs[next].source);
+    tabs.current[next]?.focus();
+  }
+
+  // Arrow keys move between tabs, as in the WAI-ARIA tabs pattern.
+  function onTabKeyDown(event: KeyboardEvent) {
+    const current = sourceTabs.findIndex(({ source }) => source === tab);
+    const moves: Record<string, number> = {
+      ArrowLeft: current - 1,
+      ArrowRight: current + 1,
+      Home: 0,
+      End: sourceTabs.length - 1,
+    };
+
+    if (!(event.key in moves)) return;
+
+    event.preventDefault();
+    selectTab(moves[event.key]);
   }
 
   function updateColor(color: Oklch) {
@@ -157,39 +259,58 @@ export function PaletteEditor({
           )}
         </label>
 
-        <label className="flex cursor-pointer items-center justify-between text-sm font-medium">
-          Cor base
-          <span className="flex items-center gap-3">
-            <span className="font-mono font-normal text-foreground/60">
-              {draft.base}
-            </span>
-            <input
-              type="color"
-              className="color-swatch size-10 rounded-xl ring-1 ring-foreground/10"
-              value={draft.base}
-              onChange={(event) =>
-                generate(event.target.value, draft.harmony)
-              }
-            />
-          </span>
-        </label>
-
-        <section className="flex flex-col gap-2">
-          <h2 className="text-sm font-medium">Harmonia</h2>
-          <div className="grid grid-cols-2 gap-2">
-            {harmonyNames.map((harmony) => (
+        <section className="flex flex-col gap-4">
+          <h2 id={`${id}-source`} className="sr-only">
+            Start from
+          </h2>
+          <div
+            role="tablist"
+            aria-labelledby={`${id}-source`}
+            className="flex gap-1 rounded-lg p-1 ring-1 ring-foreground/15"
+            onKeyDown={onTabKeyDown}
+          >
+            {sourceTabs.map(({ source, label }, index) => (
               <button
-                key={harmony}
+                key={source}
+                ref={(element) => {
+                  tabs.current[index] = element;
+                }}
                 type="button"
-                aria-pressed={harmony === draft.harmony}
-                className="flex flex-col gap-2 rounded-lg p-2 text-left text-xs ring-1 ring-foreground/15 aria-pressed:ring-2 aria-pressed:ring-foreground"
-                onClick={() => generate(draft.base, harmony)}
+                role="tab"
+                id={`${id}-tab-${source}`}
+                aria-selected={source === tab}
+                aria-controls={`${id}-panel`}
+                tabIndex={source === tab ? 0 : -1}
+                className={sourceTabClassName}
+                onClick={() => setChosenTab(source)}
               >
-                <ColorStrip colors={generateColors(draft.base, harmony)} />
-                {harmonies[harmony].label}
+                {label}
               </button>
             ))}
           </div>
+
+          <div
+            role="tabpanel"
+            id={`${id}-panel`}
+            aria-labelledby={`${id}-tab-${tab}`}
+            className="flex flex-col gap-6"
+          >
+            {tab === "harmony" ? (
+              <HarmonySource draft={draft} onGenerate={generate} />
+            ) : (
+              <ImageSource
+                image={image}
+                style={draft.imageStyle}
+                isActive={draft.source === "image"}
+                onImage={pickImage}
+                onStyle={(imageStyle) =>
+                  generate({ source: "image", imageStyle })
+                }
+                onRemove={() => onImageChange(null)}
+              />
+            )}
+          </div>
+
           {previous && (
             <button
               type="button"
