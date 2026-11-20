@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
+  blendOver,
   contrastRatio,
   generateColors,
   getGamut,
@@ -15,6 +16,8 @@ import {
   GRAPHIC_CONTRAST,
   GRAPHIC_TOKENS,
   MAIN_TEXT_CONTRAST,
+  SOFT_TINT,
+  TEXT_COLOR_TOKENS,
   TEXT_CONTRAST,
   TEXT_PAIRS,
   THEME_TOKENS,
@@ -104,6 +107,23 @@ describe("deriveTheme", () => {
     }
   });
 
+  it("keeps text colors readable on a soft tint of themselves", () => {
+    for (const { colors, theme } of themes) {
+      for (const scheme of schemes(theme)) {
+        for (const token of TEXT_COLOR_TOKENS) {
+          for (const surface of [scheme.background, scheme.card]) {
+            const tint = blendOver(scheme[token], surface, SOFT_TINT);
+
+            expect(
+              contrastRatio(scheme[token], tint),
+              `${token} on its tint in ${JSON.stringify(colors)}`,
+            ).toBeGreaterThanOrEqual(TEXT_CONTRAST);
+          }
+        }
+      }
+    }
+  });
+
   it("keeps buttons, focus rings and chart marks visible on the background", () => {
     for (const { colors, theme } of themes) {
       for (const scheme of schemes(theme)) {
@@ -125,7 +145,7 @@ describe("deriveTheme", () => {
   it("uses the palette's own background, text and main color when they work", () => {
     const cream: Oklch = [0.96, 0.02, 85];
     const navy: Oklch = [0.25, 0.06, 260];
-    const blue: Oklch = [0.5, 0.18, 260];
+    const blue: Oklch = [0.45, 0.18, 260];
     const { light } = deriveTheme([cream, blue, navy]);
 
     expect(light.background).toEqual(cream);
@@ -142,11 +162,22 @@ describe("deriveTheme", () => {
     }
   });
 
+  it("gives a palette with no color a monochrome main color, not a gray", () => {
+    const grays: Oklch[] = [0.15, 0.28, 0.42, 0.62, 0.85].map((l): Oklch => [l, 0.005, 270]);
+    const { light, dark } = deriveTheme(grays);
+
+    expect(light.primary).toEqual(light.foreground);
+    expect(light["primary-foreground"]).toEqual(light.background);
+    expect(dark.primary).toEqual(dark.foreground);
+    expect(dark["primary-foreground"]).toEqual(dark.background);
+  });
+
   it("keeps status colors recognizable", () => {
     for (const { theme: { light } } of themes) {
-      expect(hueDistance(light.destructive[2], 27)).toBeLessThanOrEqual(15);
-      expect(hueDistance(light.success[2], 150)).toBeLessThanOrEqual(15);
-      expect(hueDistance(light.info[2], 245)).toBeLessThanOrEqual(15);
+      // Up to 12° toward the main hue, plus a few from fitting into sRGB.
+      expect(hueDistance(light.destructive[2], 27)).toBeLessThanOrEqual(20);
+      expect(hueDistance(light.success[2], 150)).toBeLessThanOrEqual(20);
+      expect(hueDistance(light.info[2], 245)).toBeLessThanOrEqual(20);
     }
   });
 

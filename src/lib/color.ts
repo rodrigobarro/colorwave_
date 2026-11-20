@@ -141,6 +141,21 @@ export function contrastRatio(a: Oklch, b: Oklch) {
   return contrastWCAG21(toColor(a), toColor(b));
 }
 
+// The color a browser shows for `top` at the given opacity over `bottom`, as in
+// Tailwind's bg-primary/15: blended per sRGB channel, the way screens composite.
+export function blendOver(top: Oklch, bottom: Oklch, alpha: number): Oklch {
+  const [r1, g1, b1] = to(toColor(toSrgbGamut(top)), sRGB).coords;
+  const [r2, g2, b2] = to(toColor(toSrgbGamut(bottom)), sRGB).coords;
+  const mix = (a: number | null, b: number | null) =>
+    (a ?? 0) * alpha + (b ?? 0) * (1 - alpha);
+
+  return fromColor({
+    space: sRGB,
+    coords: [mix(r1, r2), mix(g1, g2), mix(b1, b2)],
+    alpha: 1,
+  });
+}
+
 export function hueDistance(a: number, b: number) {
   const distance = Math.abs(a - b) % 360;
 
