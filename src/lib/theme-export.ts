@@ -152,8 +152,8 @@ const USAGE_RULES = [
   "`secondary`, `muted`, `accent`: quiet surfaces. Secondary buttons and tags use `secondary`; empty and disabled states use `muted`; hover and selected items in menus and lists use `accent`.",
   "`muted-foreground`: secondary text such as captions, hints and timestamps.",
   "`card` and `popover`: raised surfaces on top of `background`, separated by `border`.",
-  "`destructive`, `success`, `warning`, `info`: only for status (errors, confirmations, warnings, notices), never as decoration.",
-  "`chart-1` to `chart-5`: data series, in that order.",
+  "`destructive`, `success`, `warning`, `info`: only for status (errors, confirmations, warnings, notices), never as decoration. `destructive`, `success` and `info` work as text, also on a soft tint of themselves (`bg-success/15 text-success`). `warning` is a fill only: on it use `text-warning-foreground`, and elsewhere write warnings in `text-foreground` next to a warning badge or icon.",
+  "`chart-1` to `chart-5`: data series, in that order. They have no matching text color, so put labels and values next to the marks in `foreground` or `muted-foreground`, never on top of them.",
   "Gradients, if any, only between colors of this theme.",
   "Support light and dark mode: a `dark` class on `<html>` switches the theme.",
 ];

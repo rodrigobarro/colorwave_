@@ -1,4 +1,5 @@
 import {
+  blendOver,
   contrastRatio,
   hueDistance,
   toSrgbGamut,
@@ -13,7 +14,10 @@ import { resolveRoles, type Scheme } from "@/lib/color-roles";
 // anything, and THEME_VERSION goes up whenever the same palette would give a
 // different theme, so an exported theme can be traced back to its rules.
 
-export const THEME_VERSION = 1;
+// 2: primary, highlight and the status colors are readable as text on every
+// surface and on their own soft tint, and a palette with no color gets a
+// monochrome main color instead of a mid gray.
+export const THEME_VERSION = 2;
 
 // shadcn/ui's variables, so a theme drops into the projects most AI tools
 // start from without renaming anything.
@@ -85,6 +89,20 @@ export const TEXT_CONTRAST = 4.5;
 export const MAIN_TEXT_CONTRAST = 7;
 export const GRAPHIC_CONTRAST = 3;
 
+// Models write a color on a faint wash of itself (bg-success/15 text-success)
+// for soft badges and alerts, so text colors also hold up on this much of it.
+export const SOFT_TINT = 0.2;
+
+// Colors that also serve as text, on any surface and on their own soft tint.
+// Warning is left out: it is a fill, with its own text color on it.
+export const TEXT_COLOR_TOKENS = [
+  "primary",
+  "highlight",
+  "destructive",
+  "success",
+  "info",
+] as const satisfies readonly ThemeToken[];
+
 // Each surface and the text meant for it, all held to TEXT_CONTRAST.
 export const TEXT_PAIRS: readonly [ThemeToken, ThemeToken][] = [
   ["background", "foreground"],
@@ -106,6 +124,12 @@ export const TEXT_PAIRS: readonly [ThemeToken, ThemeToken][] = [
   ["success", "success-foreground"],
   ["warning", "warning-foreground"],
   ["info", "info-foreground"],
+  // Models write links, icons, words in headings and status messages in these,
+  // on any surface, not only on the background.
+  ...(["background", "card", "secondary", "accent", "sidebar"] as const).flatMap(
+    (surface) =>
+      TEXT_COLOR_TOKENS.map((token): [ThemeToken, ThemeToken] => [surface, token]),
+  ),
 ];
 
 // Colors drawn straight on the background, held to GRAPHIC_CONTRAST. The
@@ -126,6 +150,9 @@ export const GRAPHIC_TOKENS: readonly ThemeToken[] = [
 ];
 
 const CHART_COUNT = 5;
+// Below this chroma the main color is a gray, which as a button reads as
+// disabled; such palettes get a monochrome one instead.
+const ACHROMATIC_CHROMA = 0.03;
 // Below this chroma a palette color reads as a neutral, not as a chart series.
 const CHART_MIN_CHROMA = 0.05;
 const LIGHTNESS_STEP = 0.01;
@@ -134,22 +161,25 @@ const LIGHTNESS_STEP = 0.01;
 // slightly toward the palette's main hue so they belong to it, and take its
 // intensity: a muted palette gets muted alerts.
 const STATUS = {
-  destructive: { hue: 27, light: 0.55, dark: 0.68, onBackground: TEXT_CONTRAST },
-  success: { hue: 150, light: 0.55, dark: 0.72, onBackground: GRAPHIC_CONTRAST },
-  warning: { hue: 80, light: 0.8, dark: 0.82, onBackground: 0 },
-  info: { hue: 245, light: 0.55, dark: 0.72, onBackground: GRAPHIC_CONTRAST },
+  destructive: { hue: 27, light: 0.55, dark: 0.68, asText: true },
+  success: { hue: 150, light: 0.55, dark: 0.72, asText: true },
+  warning: { hue: 80, light: 0.8, dark: 0.82, asText: false },
+  info: { hue: 245, light: 0.55, dark: 0.72, asText: true },
 } as const;
 const HARMONIZE_SHARE = 0.15;
 const HARMONIZE_MAX = 12;
 
-type Requirement = { against: Oklch; min: number };
+// Contrast against a fixed color, or against one that depends on the color
+// being fitted, such as a soft tint of it.
+type Requirement = { against: Oklch | ((color: Oklch) => Oklch); min: number };
 
 const clamp = (value: number, min: number, max: number) =>
   Math.min(max, Math.max(min, value));
 
 function meets(color: Oklch, requirements: readonly Requirement[]) {
   return requirements.every(
-    ({ against, min }) => contrastRatio(color, against) >= min,
+    ({ against, min }) =>
+      contrastRatio(color, typeof against === "function" ? against(color) : against) >= min,
   );
 }
 
@@ -176,13 +206,15 @@ function fit(color: Oklch, requirements: readonly Requirement[]): Oklch | null {
   return null;
 }
 
-// Like fit, for text: if nothing fits, the best available is black or white.
-function fitText(color: Oklch, requirements: readonly Requirement[]): Oklch {
+// Like fit, for text on fixed surfaces: if nothing fits, the best available is
+// black or white.
+function fitText(color: Oklch, surfaces: readonly Oklch[], min: number): Oklch {
+  const requirements = surfaces.map((against) => ({ against, min }));
+
   return (
     fit(color, requirements) ??
     ([[0, 0, 0], [1, 0, 0]] as Oklch[]).reduce((best, candidate) =>
-      contrastRatio(candidate, requirements[0].against) >
-      contrastRatio(best, requirements[0].against)
+      contrastRatio(candidate, surfaces[0]) > contrastRatio(best, surfaces[0])
         ? candidate
         : best,
     )
@@ -191,22 +223,19 @@ function fitText(color: Oklch, requirements: readonly Requirement[]): Oklch {
 
 type Inks = { light: Oklch; dark: Oklch };
 
-// A filled color (a button, a badge) and the text on it. Of the light and dark
-// inks, it takes the one that needs the smallest change to the color.
+// A filled color (a button, a badge) and the text on it, also held to the
+// given contrast against the surfaces it sits on. Of the light and dark inks,
+// it takes the one that needs the smallest change to the color.
 function solid(
   color: Oklch,
   inks: Inks,
-  background: Oklch,
-  onBackground: number,
+  surroundings: readonly Requirement[],
 ): { fill: Oklch; ink: Oklch } {
   const options = [inks.light, inks.dark].flatMap((ink) => {
-    const requirements = [{ against: ink, min: TEXT_CONTRAST }];
-
-    if (onBackground > 0) {
-      requirements.push({ against: background, min: onBackground });
-    }
-
-    const fill = fit(color, requirements);
+    const fill = fit(color, [
+      { against: ink, min: TEXT_CONTRAST },
+      ...surroundings,
+    ]);
 
     return fill ? [{ fill, ink }] : [];
   });
@@ -225,7 +254,7 @@ function solid(
   );
 
   // Black and white text meet AA on any color, so this only happens when the
-  // background requirement can't be met either.
+  // surroundings can't be met as well.
   return best ?? { fill: toSrgbGamut(color), ink: inks.dark };
 }
 
@@ -313,7 +342,11 @@ function ends(colors: readonly Oklch[], context: Context, scheme: Scheme): Ends 
     : lightest[0] >= 0.85 && fit(lightest, textRequirement);
   const foreground =
     ownText ||
-    fitText(isLight ? neutral(context, 0.2, 1.5) : neutral(context, 0.96, 0.6), textRequirement);
+    fitText(
+      isLight ? neutral(context, 0.2, 1.5) : neutral(context, 0.96, 0.6),
+      [background],
+      MAIN_TEXT_CONTRAST,
+    );
 
   return { background, foreground };
 }
@@ -351,21 +384,29 @@ function deriveScheme(
   const input = surface(-0.085, 0.15, quietChroma);
 
   const textOn = (...surfaces: Oklch[]) =>
-    fitText(
-      foreground,
-      surfaces.map((against) => ({ against, min: TEXT_CONTRAST })),
-    );
+    fitText(foreground, surfaces, TEXT_CONTRAST);
   const [, fgC, fgH] = foreground;
   const mutedForeground = fitText(
     [isLight ? 0.5 : 0.72, Math.min(fgC, 0.04), fgH],
-    [background, card, muted, sidebar].map((against) => ({
+    [background, card, muted, sidebar],
+    TEXT_CONTRAST,
+  );
+
+  const asText: Requirement[] = [
+    ...[background, card, secondary, accent, sidebar].map((against) => ({
       against,
       min: TEXT_CONTRAST,
     })),
-  );
-
-  const primary = solid(context.primary, inks, background, GRAPHIC_CONTRAST);
-  const highlight = solid(context.highlight, inks, background, GRAPHIC_CONTRAST);
+    ...[background, card].map((surface) => ({
+      against: (color: Oklch) => blendOver(color, surface, SOFT_TINT),
+      min: TEXT_CONTRAST,
+    })),
+  ];
+  const primary =
+    context.primary[1] < ACHROMATIC_CHROMA
+      ? { fill: foreground, ink: background }
+      : solid(context.primary, inks, asText);
+  const highlight = solid(context.highlight, inks, asText);
   const status = Object.fromEntries(
     Object.entries(STATUS).map(([name, spec]) => [
       name,
@@ -376,8 +417,7 @@ function deriveScheme(
           harmonize(spec.hue, context.primary[2]),
         ],
         inks,
-        background,
-        spec.onBackground,
+        spec.asText ? asText : [],
       ),
     ]),
   ) as Record<keyof typeof STATUS, { fill: Oklch; ink: Oklch }>;
@@ -388,9 +428,7 @@ function deriveScheme(
     const round = Math.floor(index / context.charts.length);
     const lightness = clamp(base[0] + (isLight ? -1 : 1) * 0.14 * round, 0, 1);
 
-    return fitText([lightness, base[1], base[2]], [
-      { against: background, min: GRAPHIC_CONTRAST },
-    ]);
+    return fitText([lightness, base[1], base[2]], [background], GRAPHIC_CONTRAST);
   });
 
   return {
