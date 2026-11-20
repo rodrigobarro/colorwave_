@@ -2,6 +2,7 @@ import { BackLink } from "@/components/back-link";
 import { PaletteOwnerActions } from "@/components/palette-owner-actions";
 import { PalettePreviews } from "@/components/palette-previews";
 import { PaletteSwatches } from "@/components/palette-swatches";
+import { PaletteTheme } from "@/components/palette-theme";
 import { toCss, toHex } from "@/lib/color";
 import type { Palette } from "@/lib/palettes";
 
@@ -75,6 +76,8 @@ export function PaletteView({ palette }: { palette: PaletteViewData }) {
       </section>
 
       <PalettePreviews colors={colors} paletteName={name} title="Previews" />
+
+      <PaletteTheme colors={colors} paletteId={id} paletteName={name} />
     </>
   );
 }

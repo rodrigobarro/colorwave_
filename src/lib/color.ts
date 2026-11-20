@@ -1,5 +1,6 @@
 import {
   ColorSpace,
+  contrastWCAG21,
   inGamut,
   OKLCH,
   P3,
@@ -132,6 +133,18 @@ export function getGamut(color: Oklch): Gamut {
 
 export function toSrgbGamut(color: Oklch) {
   return fromColor(toGamut(toColor(color), { space: sRGB, method: "css" }));
+}
+
+// The WCAG 2.1 contrast ratio, from 1 to 21. Callers pass colors inside sRGB,
+// since that is what most screens show and what the hex values export.
+export function contrastRatio(a: Oklch, b: Oklch) {
+  return contrastWCAG21(toColor(a), toColor(b));
+}
+
+export function hueDistance(a: number, b: number) {
+  const distance = Math.abs(a - b) % 360;
+
+  return distance > 180 ? 360 - distance : distance;
 }
 
 export function readableOn([lightness]: Oklch) {

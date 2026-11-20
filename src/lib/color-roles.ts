@@ -1,4 +1,4 @@
-import type { Oklch } from "@/lib/color";
+import { hueDistance, type Oklch } from "@/lib/color";
 
 // A palette is an ordered list of colors with no meaning attached, while a
 // preview of an interface needs roles: a background, text, a main color. This
@@ -37,12 +37,6 @@ function median(values: number[]) {
   return sorted.length % 2
     ? sorted[middle]
     : (sorted[middle - 1] + sorted[middle]) / 2;
-}
-
-function hueDistance(a: number, b: number) {
-  const distance = Math.abs(a - b) % 360;
-
-  return distance > 180 ? 360 - distance : distance;
 }
 
 function indexBy(
