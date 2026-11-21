@@ -1,16 +1,32 @@
 "use client";
 
-import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
+import {
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent,
+} from "react";
 import { GradientPreview } from "@/components/gradient-preview";
+import {
+  SchemeToggle,
+  withRequestedScheme,
+  type RequestedScheme,
+} from "@/components/scheme-toggle";
 import type { Oklch } from "@/lib/color";
+import type { Scheme } from "@/lib/color-roles";
 import {
   buildPreviewDocument,
   type PreviewDefinition,
 } from "@/lib/previews/contract";
 import { previews } from "@/lib/previews/registry";
+import { deriveTheme, type Theme } from "@/lib/theme";
 
 // Shared by the palette page and the editor. It reads no server data, so a
-// public palette still renders on the server with the first tab open.
+// public palette still renders on the server with the first tab open. The
+// framed previews are drawn with the palette's theme, the same one the palette
+// page exports, so what they show is what a project using it will look like.
 
 const previewTabClassName =
   "rounded-lg px-3 py-1.5 text-sm ring-1 ring-foreground/15 aria-selected:bg-foreground aria-selected:text-background aria-selected:ring-foreground";
@@ -46,12 +62,21 @@ function frameStyle(frame: PreviewDefinition["frame"]) {
 function PreviewFrame({
   preview,
   colors,
+  theme,
+  scheme,
   paletteName,
 }: {
   preview: PreviewDefinition;
   colors: readonly Oklch[];
+  theme: Theme;
+  scheme: Scheme;
   paletteName: string;
 }) {
+  const document = useMemo(
+    () => buildPreviewDocument(preview, colors, theme, scheme),
+    [preview, colors, theme, scheme],
+  );
+
   return (
     <div className="overflow-x-auto overflow-y-hidden overscroll-x-contain rounded-xl ring-1 ring-foreground/10">
       {/* An empty sandbox gives the document an opaque origin with no
@@ -61,7 +86,7 @@ function PreviewFrame({
           wrapper instead of stopping inside the frame. */}
       <iframe
         title={`${preview.name} preview of ${paletteName}`}
-        srcDoc={buildPreviewDocument(preview, colors)}
+        srcDoc={document}
         sandbox=""
         referrerPolicy="no-referrer"
         tabIndex={-1}
@@ -72,19 +97,26 @@ function PreviewFrame({
   );
 }
 
-// One preview at a time, picked with tabs, so only one frame is ever loaded.
-export function PalettePreviews({
-  colors,
-  paletteName,
-  title,
-}: {
+type PreviewsProps = {
   colors: readonly Oklch[];
   paletteName: string;
   title: string;
-}) {
+};
+
+// One preview at a time, picked with tabs, so only one frame is ever loaded.
+function PreviewTabs({
+  colors,
+  paletteName,
+  title,
+  requestedScheme,
+}: PreviewsProps & RequestedScheme) {
   const [selected, setSelected] = useState(0);
   const tabs = useRef<(HTMLButtonElement | null)[]>([]);
   const settledColors = useSettledValue(colors, FRAME_DELAY_MS);
+  // Deriving a theme takes tens of milliseconds, so it waits for the colors to
+  // settle too.
+  const theme = useMemo(() => deriveTheme(settledColors), [settledColors]);
+  const scheme = requestedScheme ?? theme.scheme;
   const id = useId();
   const preview = previews[selected];
 
@@ -117,30 +149,39 @@ export function PalettePreviews({
         {title}
       </h2>
 
-      <div
-        role="tablist"
-        aria-labelledby={`${id}-title`}
-        className="flex flex-wrap gap-2"
-        onKeyDown={onKeyDown}
-      >
-        {previews.map((item, index) => (
-          <button
-            key={item.id}
-            ref={(element) => {
-              tabs.current[index] = element;
-            }}
-            type="button"
-            role="tab"
-            id={`${id}-tab-${item.id}`}
-            aria-selected={index === selected}
-            aria-controls={`${id}-panel`}
-            tabIndex={index === selected ? 0 : -1}
-            className={previewTabClassName}
-            onClick={() => setSelected(index)}
-          >
-            {item.name}
-          </button>
-        ))}
+      <div className="flex flex-wrap items-center gap-2">
+        <div
+          role="tablist"
+          aria-labelledby={`${id}-title`}
+          className="flex flex-wrap gap-2"
+          onKeyDown={onKeyDown}
+        >
+          {previews.map((item, index) => (
+            <button
+              key={item.id}
+              ref={(element) => {
+                tabs.current[index] = element;
+              }}
+              type="button"
+              role="tab"
+              id={`${id}-tab-${item.id}`}
+              aria-selected={index === selected}
+              aria-controls={`${id}-panel`}
+              tabIndex={index === selected ? 0 : -1}
+              className={previewTabClassName}
+              onClick={() => setSelected(index)}
+            >
+              {item.name}
+            </button>
+          ))}
+        </div>
+        {/* The gradient is the same in either scheme, so the toggle hides
+            there, keeping its space so the tabs don't move. */}
+        <SchemeToggle
+          scheme={scheme}
+          natural={theme.scheme}
+          className={`ml-auto ${preview.id === "gradient" ? "invisible" : ""}`}
+        />
       </div>
 
       <figure
@@ -158,6 +199,8 @@ export function PalettePreviews({
           <PreviewFrame
             preview={preview}
             colors={settledColors}
+            theme={theme}
+            scheme={scheme}
             paletteName={paletteName}
           />
         )}
@@ -168,3 +211,5 @@ export function PalettePreviews({
     </section>
   );
 }
+
+export const PalettePreviews = withRequestedScheme<PreviewsProps>(PreviewTabs);

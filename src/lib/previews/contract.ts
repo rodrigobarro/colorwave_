@@ -1,5 +1,6 @@
 import { MAX_COLORS, readableOn, toCss, type Oklch } from "@/lib/color";
-import { resolveRoles, ROLES } from "@/lib/color-roles";
+import type { Scheme } from "@/lib/color-roles";
+import { THEME_TOKENS, type Theme } from "@/lib/theme";
 
 // A preview shows a palette applied to something: a gradient, a landing page,
 // a chart. It is a template of HTML and CSS with no scripts, rendered in a
@@ -9,9 +10,15 @@ import { resolveRoles, ROLES } from "@/lib/color-roles";
 //                                          text color readable on it
 //   --color-count, --colors                how many there are, and all of them
 //                                          as a list, for gradients
-//   --bg --surface --fg --muted            colors by role, picked by
-//   --primary --accent                     resolveRoles; --on-primary and
-//                                          --on-accent are readable on those
+//   --background, --foreground, --primary  the palette's theme (deriveTheme) in
+//   … every token in THEME_TOKENS          the scheme being shown, named as in
+//                                          the exported theme
+//
+// Interface previews use the theme tokens, so a preview looks the way a project
+// using the exported theme will, with the same contrast guarantees: text in a
+// *-foreground on its color; primary, highlight, destructive, success and info
+// as text on any surface and on a 20% tint of themselves mixed in sRGB
+// (color-mix(in srgb, var(--success) 20%, var(--card))); warning only as a fill.
 //
 // Any element with data-color="K" gets --c and --on-c set to the Kth color and
 // is hidden when the palette has fewer than K colors, so a template can list up
@@ -22,7 +29,9 @@ import { resolveRoles, ROLES } from "@/lib/color-roles";
 // previews before anyone else writes one. A new, incompatible contract gets a
 // new apiVersion, and each preview states the one it was written for.
 
-export const PREVIEW_API_VERSION = 1;
+// 2: the theme tokens replaced the roles (--bg, --surface, --fg, --muted,
+// --primary, --accent), and the scheme can be either one.
+export const PREVIEW_API_VERSION = 2;
 
 export type PreviewFrame =
   // Scales with the page down to minWidth, the narrowest width the preview is
@@ -50,8 +59,7 @@ export const PREVIEW_CSP =
 
 export const MAX_TEMPLATE_LENGTH = 50_000;
 
-function declarations(colors: readonly Oklch[]) {
-  const roles = resolveRoles(colors);
+function declarations(colors: readonly Oklch[], theme: Theme, scheme: Scheme) {
   const lines: string[] = [];
 
   colors.forEach((color, index) => {
@@ -61,14 +69,12 @@ function declarations(colors: readonly Oklch[]) {
   lines.push(`--color-count: ${colors.length};`);
   lines.push(`--colors: ${colors.map(toCss).join(", ")};`);
 
-  for (const role of ROLES) {
-    lines.push(`--${role}: ${toCss(roles.colors[role])};`);
+  for (const token of THEME_TOKENS) {
+    lines.push(`--${token}: ${toCss(theme[scheme][token])};`);
   }
-  lines.push(`--on-primary: ${readableOn(roles.colors.primary)};`);
-  lines.push(`--on-accent: ${readableOn(roles.colors.accent)};`);
-  lines.push(`color-scheme: ${roles.scheme};`);
+  lines.push(`color-scheme: ${scheme};`);
 
-  return { scheme: roles.scheme, css: lines.join("\n") };
+  return lines.join("\n");
 }
 
 function colorSlots(count: number) {
@@ -85,19 +91,23 @@ const baseCss = `
 *, *::before, *::after { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; overflow: hidden; }
 body {
-  background: var(--bg);
-  color: var(--fg);
+  background: var(--background);
+  color: var(--foreground);
   font: 14px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
 }`;
 
 // The whole document goes in the iframe's srcdoc, so it renders the same on
-// the server for public palettes and in the browser for private ones.
+// the server for public palettes and in the browser for private ones. The
+// theme is passed in, since deriving it takes a while and the caller usually
+// has it already; the scheme defaults to the one the palette reads as.
 export function buildPreviewDocument(
   preview: PreviewDefinition,
   colors: readonly Oklch[],
+  theme: Theme,
+  scheme: Scheme = theme.scheme,
 ) {
-  const { scheme, css } = declarations(colors);
+  const css = declarations(colors, theme, scheme);
 
   return `<!doctype html>
 <html data-scheme="${scheme}" data-colors="${colors.length}">

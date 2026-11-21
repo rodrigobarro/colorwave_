@@ -1,9 +1,9 @@
 import { hueDistance, type Oklch } from "@/lib/color";
 
-// A palette is an ordered list of colors with no meaning attached, while a
-// preview of an interface needs roles: a background, text, a main color. This
-// picks a color for each role, so a preview asks for "primary" and works with
-// any palette, whatever its size or order.
+// A palette is an ordered list of colors with no meaning attached, while an
+// interface needs roles: a background, text, a main color. This picks a palette
+// color for each role, whatever the palette's size or order; deriveTheme builds
+// the full theme the previews and exports use from these picks.
 
 export const ROLES = ["bg", "surface", "fg", "muted", "primary", "accent"] as const;
 

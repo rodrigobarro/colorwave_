@@ -8,6 +8,7 @@ import {
   type PreviewDefinition,
 } from "@/lib/previews/contract";
 import { previews } from "@/lib/previews/registry";
+import { deriveTheme, THEME_TOKENS } from "@/lib/theme";
 
 const colors: Oklch[] = [
   [0.97, 0.01, 90],
@@ -25,8 +26,10 @@ const preview: PreviewDefinition = {
   css: `.hello { color: var(--primary); }`,
 };
 
+const theme = deriveTheme(colors);
+
 describe("buildPreviewDocument", () => {
-  const document = buildPreviewDocument(preview, colors);
+  const document = buildPreviewDocument(preview, colors, theme);
 
   it("blocks every network request from the preview", () => {
     expect(document).toContain(
@@ -44,16 +47,26 @@ describe("buildPreviewDocument", () => {
     expect(document).not.toContain("--color-4:");
   });
 
-  it("passes the colors by role", () => {
-    for (const role of ["bg", "surface", "fg", "muted", "primary", "accent"]) {
-      expect(document).toMatch(new RegExp(`--${role}: oklch\\(`));
+  it("passes every theme token, in the scheme the palette reads as", () => {
+    for (const token of THEME_TOKENS) {
+      expect(document).toContain(`--${token}: ${toCss(theme.light[token])};`);
     }
-    expect(document).toContain("--on-primary:");
+    expect(document).toContain("color-scheme: light;");
+  });
+
+  it("passes the other scheme when asked", () => {
+    const dark = buildPreviewDocument(preview, colors, theme, "dark");
+
+    expect(dark).toContain(`<html data-scheme="dark" data-colors="3">`);
+    expect(dark).toContain(`--background: ${toCss(theme.dark.background)};`);
+    expect(dark).toContain("color-scheme: dark;");
   });
 
   it("hides color slots past the palette's size", () => {
     expect(document).toContain(`[data-color="3"] { --c: var(--color-3);`);
-    expect(document).toContain(`[data-color="4"] { display: none !important; }`);
+    expect(document).toContain(
+      `[data-color="4"] { display: none !important; }`,
+    );
     expect(document).toContain(`[data-color="${MAX_COLORS}"] { display: none`);
   });
 
@@ -75,21 +88,27 @@ describe("findTemplateProblems", () => {
 
   it("accepts a template within the contract", () => {
     expect(findTemplateProblems(preview)).toEqual([]);
-    expect(withCss(`.a { background: url(data:image/png;base64,AAAA); }`)).toEqual([]);
+    expect(
+      withCss(`.a { background: url(data:image/png;base64,AAAA); }`),
+    ).toEqual([]);
   });
 
   it("rejects scripts and event handlers", () => {
-    expect(withHtml(`<script>alert(1)</script>`)).toContain("has a <script> tag");
-    expect(withHtml(`<p onclick="x()">Hi</p>`)).toContain("has an inline event handler");
+    expect(withHtml(`<script>alert(1)</script>`)).toContain(
+      "has a <script> tag",
+    );
+    expect(withHtml(`<p onclick="x()">Hi</p>`)).toContain(
+      "has an inline event handler",
+    );
   });
 
   it("rejects anything loaded from elsewhere", () => {
     expect(withHtml(`<img src="https://example.com/a.png">`)).toContain(
       "links to another resource",
     );
-    expect(withCss(`.a { background: url(https://example.com/a.png); }`)).toContain(
-      "loads a URL from CSS",
-    );
+    expect(
+      withCss(`.a { background: url(https://example.com/a.png); }`),
+    ).toContain("loads a URL from CSS");
     expect(withCss(`@import "https://example.com/a.css";`)).toContain(
       "imports a stylesheet",
     );
@@ -116,6 +135,37 @@ describe("built-in previews", () => {
     (_, builtIn) => {
       expect(builtIn.apiVersion).toBe(PREVIEW_API_VERSION);
       expect(findTemplateProblems(builtIn)).toEqual([]);
+    },
+  );
+
+  // A misspelled token is an undefined variable, which CSS drops silently.
+  it.each(previews.map((p) => [p.id, p] as const))(
+    "%s only uses variables the contract defines",
+    (_, builtIn) => {
+      const defined = new Set([
+        ...THEME_TOKENS,
+        ...Array.from({ length: MAX_COLORS }, (_, i) => [
+          `color-${i + 1}`,
+          `on-color-${i + 1}`,
+        ]).flat(),
+        "color-count",
+        "colors",
+        "c",
+        "on-c",
+      ]);
+      const source = `${builtIn.html}\n${builtIn.css}`;
+      const own = new Set(
+        [...source.matchAll(/(?<![\w-])--([\w-]+)\s*:/g)].map(
+          ([, name]) => name,
+        ),
+      );
+      const used = [...source.matchAll(/var\(--([\w-]+)/g)].map(
+        ([, name]) => name,
+      );
+
+      expect(
+        used.filter((name) => !defined.has(name) && !own.has(name)),
+      ).toEqual([]);
     },
   );
 });
