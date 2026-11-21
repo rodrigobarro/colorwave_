@@ -17,6 +17,8 @@
     "colorjs.io": "^0.7.1",
     "drizzle-orm": "^0.45.4",
     "next": "16.4.6",
+    "posthog-js": "^1.447.3",
+    "posthog-node": "^5.73.1",
     "react": "19.3.1",
     "react-dom": "19.3.1"
   },

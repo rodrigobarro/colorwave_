@@ -390,6 +390,7 @@ export function PaletteEditor({
           colors={colors}
           paletteName={draft.name.trim() || "nova paleta"}
           title="Prévias"
+          place="editor"
         />
       </div>
     </main>

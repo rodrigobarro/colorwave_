@@ -75,7 +75,12 @@ export function PaletteView({ palette }: { palette: PaletteViewData }) {
         </ul>
       </section>
 
-      <PalettePreviews colors={colors} paletteName={name} title="Previews" />
+      <PalettePreviews
+        colors={colors}
+        paletteName={name}
+        title="Previews"
+        place="palette"
+      />
 
       <PaletteTheme colors={colors} paletteId={id} paletteName={name} />
     </>

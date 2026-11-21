@@ -14,6 +14,7 @@ import {
   withRequestedScheme,
   type RequestedScheme,
 } from "@/components/scheme-toggle";
+import { track, type Place } from "@/lib/analytics";
 import type { Oklch } from "@/lib/color";
 import type { Scheme } from "@/lib/color-roles";
 import {
@@ -101,6 +102,7 @@ type PreviewsProps = {
   colors: readonly Oklch[];
   paletteName: string;
   title: string;
+  place: Place;
 };
 
 // One preview at a time, picked with tabs, so only one frame is ever loaded.
@@ -108,6 +110,7 @@ function PreviewTabs({
   colors,
   paletteName,
   title,
+  place,
   requestedScheme,
 }: PreviewsProps & RequestedScheme) {
   const [selected, setSelected] = useState(0);
@@ -120,10 +123,17 @@ function PreviewTabs({
   const id = useId();
   const preview = previews[selected];
 
+  function show(index: number) {
+    if (index === selected) return;
+
+    setSelected(index);
+    track("preview_selected", { preview: previews[index].id, place });
+  }
+
   function select(index: number) {
     const next = (index + previews.length) % previews.length;
 
-    setSelected(next);
+    show(next);
     tabs.current[next]?.focus();
   }
 
@@ -169,7 +179,7 @@ function PreviewTabs({
               aria-controls={`${id}-panel`}
               tabIndex={index === selected ? 0 : -1}
               className={previewTabClassName}
-              onClick={() => setSelected(index)}
+              onClick={() => show(index)}
             >
               {item.name}
             </button>
@@ -179,6 +189,7 @@ function PreviewTabs({
             there, keeping its space so the tabs don't move. */}
         <SchemeToggle
           scheme={scheme}
+          from="previews"
           natural={theme.scheme}
           className={`ml-auto ${preview.id === "gradient" ? "invisible" : ""}`}
         />

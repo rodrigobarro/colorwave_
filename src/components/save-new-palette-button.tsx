@@ -10,6 +10,7 @@ import {
 } from "react";
 import { savePalette } from "@/app/create/actions";
 import { SignInDialog } from "@/components/sign-in-dialog";
+import { track } from "@/lib/analytics";
 import { authClient } from "@/lib/auth/client";
 import { getInitialDraft, saveDraft, type Draft } from "@/lib/draft";
 import { writeDraftImage } from "@/lib/draft-image";
@@ -55,6 +56,13 @@ export function SaveNewPaletteButton({
         return;
       }
 
+      track("palette_saved", {
+        source: draft.source,
+        colors: draft.colors.length,
+        ...(draft.source === "harmony"
+          ? { harmony: draft.harmony }
+          : { image_style: draft.imageStyle }),
+      });
       saveDraft(getInitialDraft());
       writeDraftImage(null);
       router.push(`/palette/${result.id}`);

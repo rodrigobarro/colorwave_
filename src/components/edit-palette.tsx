@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { updatePalette } from "@/app/palette/actions";
+import { track } from "@/lib/analytics";
 import { PaletteEditor } from "@/components/palette-editor";
 import { SignInButton } from "@/components/sign-in-dialog";
 import { isHarmony, isHexColor, toHex } from "@/lib/color";
@@ -67,6 +68,11 @@ function SaveButton({
         return;
       }
 
+      track("palette_updated", {
+        palette_id: paletteId,
+        source: draft.source,
+        colors: draft.colors.length,
+      });
       router.push(`/palette/${paletteId}`);
     });
   }
