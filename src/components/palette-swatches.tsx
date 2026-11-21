@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { track } from "@/lib/analytics";
 import { readableOn, toCss, toHex, type Oklch } from "@/lib/color";
 
 type Copied = { index: number; hex: string; id: number };
@@ -27,6 +28,7 @@ export function PaletteSwatches({
     }
 
     setCopied((current) => ({ index, hex, id: (current?.id ?? 0) + 1 }));
+    track("color_copied", { format: "hex" });
   }
 
   function clear(id: number) {

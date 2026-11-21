@@ -8,6 +8,7 @@ import {
   type CSSProperties,
   type KeyboardEvent,
 } from "react";
+import { track } from "@/lib/analytics";
 import { contrastRatio, toCss, toHex, type Oklch } from "@/lib/color";
 import {
   SchemeToggle,
@@ -214,10 +215,12 @@ function ThemeExport({
   output,
   format,
   onFormatChange,
+  onExport,
 }: {
   output: string;
   format: ThemeExportFormat;
   onFormatChange: (format: ThemeExportFormat) => void;
+  onExport: (action: "copy" | "download") => void;
 }) {
   const id = useId();
   const tabs = useRef<(HTMLButtonElement | null)[]>([]);
@@ -228,7 +231,7 @@ function ThemeExport({
   function select(index: number) {
     const next = (index + THEME_EXPORT_FORMATS.length) % THEME_EXPORT_FORMATS.length;
 
-    onFormatChange(THEME_EXPORT_FORMATS[next].id);
+    if (next !== selected) onFormatChange(THEME_EXPORT_FORMATS[next].id);
     setCopied(false);
     tabs.current[next]?.focus();
   }
@@ -251,6 +254,7 @@ function ThemeExport({
     try {
       await navigator.clipboard.writeText(output);
       setCopied(true);
+      onExport("copy");
     } catch {
       // Only available on HTTPS or localhost, and the browser may deny it.
     }
@@ -263,6 +267,7 @@ function ThemeExport({
     link.href = url;
     link.download = current.file;
     link.click();
+    onExport("download");
     // Revoked once the browser has started the download.
     setTimeout(() => URL.revokeObjectURL(url));
   }
@@ -364,12 +369,22 @@ function ThemePanel({
             {lowestTextContrast(schemeColors).toFixed(1)}:1).
           </p>
         </div>
-        <SchemeToggle scheme={scheme} natural={theme.scheme} />
+        <SchemeToggle scheme={scheme} natural={theme.scheme} from="theme" />
       </div>
 
       <ThemeSample colors={schemeColors} />
       <TokenList colors={schemeColors} />
-      <ThemeExport output={output} format={format} onFormatChange={setFormat} />
+      <ThemeExport
+        output={output}
+        format={format}
+        onFormatChange={(next) => {
+          setFormat(next);
+          track("theme_format_selected", { palette_id: paletteId, format: next });
+        }}
+        onExport={(action) =>
+          track("theme_exported", { palette_id: paletteId, format, action, scheme })
+        }
+      />
     </section>
   );
 }

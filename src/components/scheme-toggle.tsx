@@ -2,6 +2,7 @@
 
 import { useSearchParams } from "next/navigation";
 import { Suspense, type ComponentType } from "react";
+import { track, type AnalyticsEvents } from "@/lib/analytics";
 import type { Scheme } from "@/lib/color-roles";
 
 // The light or dark scheme a page shows its palette in. It lives in the URL
@@ -48,12 +49,22 @@ export function withRequestedScheme<P extends object>(
 export function SchemeToggle({
   scheme,
   natural,
+  from,
   className = "",
 }: {
   scheme: Scheme;
   natural: Scheme;
+  // Which toggle was used, for analytics.
+  from: AnalyticsEvents["scheme_changed"]["from"];
   className?: string;
 }) {
+  function choose(next: Scheme) {
+    if (next === scheme) return;
+
+    chooseScheme(next, natural);
+    track("scheme_changed", { scheme: next, from });
+  }
+
   return (
     <div
       role="group"
@@ -66,7 +77,7 @@ export function SchemeToggle({
           type="button"
           aria-pressed={scheme === option}
           className="rounded-md px-3 py-1 text-sm capitalize aria-pressed:bg-foreground aria-pressed:text-background"
-          onClick={() => chooseScheme(option, natural)}
+          onClick={() => choose(option)}
         >
           {option}
         </button>

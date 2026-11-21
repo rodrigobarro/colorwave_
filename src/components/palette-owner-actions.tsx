@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState, useTransition, type RefObject } from "react";
 import { deletePalette, setPaletteVisibility } from "@/app/palette/actions";
+import { track } from "@/lib/analytics";
 import { authClient } from "@/lib/auth/client";
 import type { Visibility } from "@/lib/visibility";
 
@@ -110,15 +111,23 @@ export function PaletteOwnerActions({
 
       const result = await setPaletteVisibility(paletteId, "public");
 
-      if (result?.error) setPublishError(result.error);
-      else router.refresh();
+      if (result?.error) {
+        setPublishError(result.error);
+        return;
+      }
+
+      track("palette_published", { palette_id: paletteId });
+      router.refresh();
     });
   }
 
   async function unpublish() {
     const result = await setPaletteVisibility(paletteId, "private");
 
-    if (!result?.error) router.refresh();
+    if (!result?.error) {
+      track("palette_unpublished", { palette_id: paletteId });
+      router.refresh();
+    }
 
     return result;
   }
@@ -126,7 +135,10 @@ export function PaletteOwnerActions({
   async function remove() {
     const result = await deletePalette(paletteId);
 
-    if (!result?.error) router.push(visibility === "private" ? "/me" : "/");
+    if (!result?.error) {
+      track("palette_deleted", { palette_id: paletteId });
+      router.push(visibility === "private" ? "/me" : "/");
+    }
 
     return result;
   }
