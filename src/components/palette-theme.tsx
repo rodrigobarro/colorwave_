@@ -1,8 +1,6 @@
 "use client";
 
-import { useSearchParams } from "next/navigation";
 import {
-  Suspense,
   useId,
   useMemo,
   useRef,
@@ -11,7 +9,11 @@ import {
   type KeyboardEvent,
 } from "react";
 import { contrastRatio, toCss, toHex, type Oklch } from "@/lib/color";
-import type { Scheme } from "@/lib/color-roles";
+import {
+  SchemeToggle,
+  withRequestedScheme,
+  type RequestedScheme,
+} from "@/components/scheme-toggle";
 import { SITE_URL } from "@/lib/site";
 import {
   deriveTheme,
@@ -29,7 +31,8 @@ import {
 // The theme derived from a palette: a small interface drawn with it, its
 // colors by job, and the code to take it away. Rendered on the server for
 // public palettes, with the scheme the palette reads as; a ?scheme= in the URL
-// switches it once the page loads, so a link can open the dark theme.
+// switches it once the page loads, so a link can open the dark theme. The
+// previews above it share the same ?scheme=.
 
 const tabClassName =
   "rounded-lg px-3 py-1.5 text-sm ring-1 ring-foreground/15 aria-selected:bg-foreground aria-selected:text-background aria-selected:ring-foreground";
@@ -40,10 +43,6 @@ type ThemeProps = {
   paletteId: number;
   paletteName: string;
 };
-
-function isScheme(value: string | null): value is Scheme {
-  return value === "light" || value === "dark";
-}
 
 function themeVariables(colors: ThemeColors) {
   return Object.fromEntries(
@@ -340,7 +339,7 @@ function ThemePanel({
   paletteId,
   paletteName,
   requestedScheme,
-}: ThemeProps & { requestedScheme: Scheme | null }) {
+}: ThemeProps & RequestedScheme) {
   const theme = useMemo(() => deriveTheme(colors), [colors]);
   const [format, setFormat] = useState<ThemeExportFormat>("prompt");
   const scheme = requestedScheme ?? theme.scheme;
@@ -354,16 +353,6 @@ function ThemePanel({
     [theme, format, paletteName, paletteId],
   );
 
-  // Kept in the URL so the link opens the scheme being looked at. Next keeps
-  // useSearchParams in step with replaceState.
-  function chooseScheme(next: Scheme) {
-    const url = new URL(window.location.href);
-
-    if (next === theme.scheme) url.searchParams.delete("scheme");
-    else url.searchParams.set("scheme", next);
-    window.history.replaceState(null, "", url);
-  }
-
   return (
     <section className="flex flex-col gap-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -375,23 +364,7 @@ function ThemePanel({
             {lowestTextContrast(schemeColors).toFixed(1)}:1).
           </p>
         </div>
-        <div
-          role="group"
-          aria-label="Color scheme"
-          className="flex rounded-lg p-0.5 ring-1 ring-foreground/15"
-        >
-          {(["light", "dark"] as const).map((option) => (
-            <button
-              key={option}
-              type="button"
-              aria-pressed={scheme === option}
-              className="rounded-md px-3 py-1 text-sm capitalize aria-pressed:bg-foreground aria-pressed:text-background"
-              onClick={() => chooseScheme(option)}
-            >
-              {option}
-            </button>
-          ))}
-        </div>
+        <SchemeToggle scheme={scheme} natural={theme.scheme} />
       </div>
 
       <ThemeSample colors={schemeColors} />
@@ -401,18 +374,4 @@ function ThemePanel({
   );
 }
 
-function ThemeFromUrl(props: ThemeProps) {
-  const scheme = useSearchParams().get("scheme");
-
-  return <ThemePanel {...props} requestedScheme={isScheme(scheme) ? scheme : null} />;
-}
-
-export function PaletteTheme(props: ThemeProps) {
-  // The cached page can't read the URL, so it shows the palette's own scheme
-  // until the browser takes over.
-  return (
-    <Suspense fallback={<ThemePanel {...props} requestedScheme={null} />}>
-      <ThemeFromUrl {...props} />
-    </Suspense>
-  );
-}
+export const PaletteTheme = withRequestedScheme<ThemeProps>(ThemePanel);

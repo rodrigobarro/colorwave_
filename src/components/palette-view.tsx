@@ -120,13 +120,15 @@ export function PaletteSkeleton() {
           </ul>
         </div>
 
-        {/* The previews heading, its tabs and the first tab, the gradient. */}
+        {/* The previews heading, its tabs and the first tab, the gradient.
+            The scheme toggle is hidden on that tab but keeps its space. */}
         <div className="flex flex-col gap-3">
           <div className={`h-5 w-16 ${skeletonBlock}`} />
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             {["w-20", "w-28", "w-28", "w-16"].map((width, index) => (
               <div key={index} className={`h-8 rounded-lg bg-foreground/10 ${width}`} />
             ))}
+            <div className="ml-auto h-8 w-30" />
           </div>
           <div className="h-24 rounded-xl bg-foreground/10" />
         </div>
